@@ -1,0 +1,41 @@
+plugins { id 'com.android.application' }
+
+def signing = new Properties()
+def signingFile = rootProject.file('signing.properties')
+if (signingFile.exists()) signingFile.withInputStream { signing.load(it) }
+
+android {
+    namespace 'kr.dogdive.roomorder'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'kr.dogdive.roomorder'
+        minSdk 33
+        targetSdk 33
+        versionCode 15
+        versionName '2.5.2'
+        testInstrumentationRunner 'kr.dogdive.roomorder.DarkModeCheck'
+    }
+    buildFeatures { buildConfig true; resValues true }
+    signingConfigs {
+        if (signingFile.exists()) {
+            tablet {
+                storeFile rootProject.file(signing['storeFile'])
+                storePassword signing['storePassword']
+                keyAlias signing['keyAlias']
+                keyPassword signing['keyPassword']
+            }
+        }
+    }
+    buildTypes {
+        debug { applicationIdSuffix '.dev'; versionNameSuffix '-dev' }
+        release {
+            applicationIdSuffix '.tablet'
+            minifyEnabled false
+            if (signingFile.exists()) signingConfig signingConfigs.tablet
+        }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    lint { abortOnError true; checkReleaseBuilds true }
+}
+
+dependencies { implementation 'androidx.webkit:webkit:1.15.0' }

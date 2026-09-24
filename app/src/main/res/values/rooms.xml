@@ -1,0 +1,13 @@
+<resources>
+    <!-- Deployment configuration in Rooms.NUMBERS order. Menu content is loaded from Toss. -->
+    <string-array name="room_urls" translatable="false">
+        <item>https://toss.place/_t/qr1bDKteNpij</item>
+        <item>https://toss.place/_t/qr1bDKteNmXh</item>
+        <item>https://toss.place/_t/qr1bDKteNT0w</item>
+        <item>https://toss.place/_t/qr1bDKteNQjg</item>
+        <item>https://toss.place/_t/qr1bDKteN7Wv</item>
+        <item>https://toss.place/_t/qr1bDKteNBU3</item>
+        <item>https://toss.place/_t/qr1bDKteNpai</item>
+        <item>https://toss.place/_t/qr1bDKteNmEt</item>
+    </string-array>
+</resources>

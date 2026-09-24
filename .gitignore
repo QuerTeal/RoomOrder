@@ -1,0 +1,14 @@
+.gradle/
+.gradle-local/
+**/build/
+local.properties
+signing.properties
+*.jks
+*.keystore
+.idea/
+captures/
+*.log
+# Release artifacts are kept as versioned zips beside the project, not in history.
+*.apk
+*.zip
+/RoomOrder-Android13-*/

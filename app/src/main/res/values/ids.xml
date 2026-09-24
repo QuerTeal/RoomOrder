@@ -1,0 +1,7 @@
+<resources>
+    <item type="id" name="ui_role" />
+    <item type="id" name="dark_mode_toggle" />
+    <item type="id" name="save_settings" />
+    <item type="id" name="idle_refresh_setting" />
+    <item type="id" name="idle_countdown" />
+</resources>
