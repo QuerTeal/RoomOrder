@@ -4,4 +4,7 @@
     <item type="id" name="save_settings" />
     <item type="id" name="idle_refresh_setting" />
     <item type="id" name="idle_countdown" />
+    <item type="id" name="motion_number" />
+    <item type="id" name="motion_complete" />
+    <item type="id" name="motion_bounce" />
 </resources>

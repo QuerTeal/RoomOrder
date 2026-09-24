@@ -11,8 +11,8 @@ android {
         applicationId 'kr.dogdive.roomorder'
         minSdk 33
         targetSdk 33
-        versionCode 16
-        versionName '2.5.3'
+        versionCode 17
+        versionName '2.6.0'
         testInstrumentationRunner 'kr.dogdive.roomorder.DarkModeCheck'
     }
     buildFeatures { buildConfig true; resValues true }

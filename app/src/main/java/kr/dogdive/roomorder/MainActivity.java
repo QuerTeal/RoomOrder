@@ -56,6 +56,8 @@ public abstract class MainActivity extends Activity {
     private TextView status, errorMessage;
     private boolean failed, dark, wide = true;
     private int zoom = 120;
+    private boolean animNumber = true, animComplete = true;
+    private int animBounce = Motion.DEFAULT_BOUNCE;
     private String tabletScript = "";
     private String themeScript = "";
     private String interactionScript = "";
@@ -111,6 +113,7 @@ public abstract class MainActivity extends Activity {
         wide = getIntent().getBooleanExtra(SettingsStore.WIDE, true);
         zoom = SettingsStore.clampZoom(getIntent().getIntExtra(SettingsStore.ZOOM, 120));
         if (state != null) { wide = state.getBoolean(SettingsStore.WIDE, wide); zoom = SettingsStore.clampZoom(state.getInt(SettingsStore.ZOOM, zoom)); }
+        setMotion(getIntent());
         idleRefresh = new IdleRefresh(getIntent().getIntExtra(SettingsStore.IDLE_REFRESH, IdleRefresh.DEFAULT_SECONDS), SystemClock.elapsedRealtime());
         try (var input = getAssets().open("theme.js")) { themeScript = new String(input.readAllBytes(), StandardCharsets.UTF_8); }
         catch (IOException e) { /* The native theme remains available. */ }
@@ -293,7 +296,8 @@ public abstract class MainActivity extends Activity {
         try {
             config.put("wide", wide).put("dark", dark).put("loading", getString(R.string.transition_loading))
                 .put("processing", getString(R.string.transition_processing)).put("slow", getString(R.string.transition_slow))
-                .put("uncertain_cart", getString(R.string.transition_uncertain_cart)).put("uncertain_order", getString(R.string.transition_uncertain_order));
+                .put("uncertain_cart", getString(R.string.transition_uncertain_cart)).put("uncertain_order", getString(R.string.transition_uncertain_order))
+                .put("motion", new JSONObject().put("number", animNumber).put("complete", animComplete).put("bounce", animBounce));
         } catch (JSONException e) { throw new IllegalStateException(e); }
         return "window.__roomConfig=" + config + ";\n" + themeScript + "\n" + interactionScript + "\n" + tabletScript + "\n" + maintenanceScript;
     }
@@ -364,11 +368,24 @@ public abstract class MainActivity extends Activity {
         wide = data.getBooleanExtra(SettingsStore.WIDE, wide); zoom = SettingsStore.clampZoom(data.getIntExtra(SettingsStore.ZOOM, zoom));
         dark = data.getBooleanExtra(SettingsStore.DARK, dark); ui.refresh(dark);
         configureIdleRefresh(data.getIntExtra(SettingsStore.IDLE_REFRESH, idleRefresh.intervalSeconds()));
+        setMotion(data);
         // Keep the current session/cart and retain settings across process recreation.
         getIntent().putExtra(SettingsStore.WIDE, wide).putExtra(SettingsStore.ZOOM, zoom).putExtra(SettingsStore.DARK, dark);
         web.getSettings().setTextZoom(zoom); applyLayout();
         installDocumentScript();
         if (data.getBooleanExtra(SettingsStore.RELOAD, false)) web.reload();
+    }
+    /** Returns whether the page animations must be reapplied. Kept on the intent for in-process recreation. */
+    private boolean setMotion(boolean number, boolean complete, int bounce) {
+        bounce = Motion.clampBounce(bounce);
+        boolean changed = number != animNumber || complete != animComplete || bounce != animBounce;
+        animNumber = number; animComplete = complete; animBounce = bounce;
+        getIntent().putExtra(SettingsStore.ANIM_NUMBER, number).putExtra(SettingsStore.ANIM_COMPLETE, complete).putExtra(SettingsStore.ANIM_BOUNCE, bounce);
+        return changed;
+    }
+    private boolean setMotion(Intent source) {
+        return setMotion(source.getBooleanExtra(SettingsStore.ANIM_NUMBER, animNumber), source.getBooleanExtra(SettingsStore.ANIM_COMPLETE, animComplete),
+            source.getIntExtra(SettingsStore.ANIM_BOUNCE, animBounce));
     }
     private void loadRoom() { if (web != null) web.loadUrl(Rooms.url(this, roomNumber())); }
     private void showReadyStatus() { status.setText(recoveryNotice ? getString(R.string.engine_recovered_notice) : ""); }
@@ -582,6 +599,7 @@ public abstract class MainActivity extends Activity {
         zoom = SettingsStore.clampZoom(intent.getIntExtra(SettingsStore.ZOOM, zoom));
         dark = intent.getBooleanExtra(SettingsStore.DARK, dark); ui.refresh(dark);
         configureIdleRefresh(intent.getIntExtra(SettingsStore.IDLE_REFRESH, idleRefresh.intervalSeconds()));
+        setMotion(intent);
         web.getSettings().setTextZoom(zoom); installDocumentScript(); applyLayout();
     }
     @Override public void onWindowFocusChanged(boolean focus) { super.onWindowFocusChanged(focus); if (focus) ui.immersive(); }
@@ -601,8 +619,10 @@ public abstract class MainActivity extends Activity {
             boolean savedDark = runtime.getBoolean(SettingsStore.DARK, dark);
             int savedIdle = runtime.getInt(SettingsStore.IDLE_REFRESH, idleRefresh.intervalSeconds());
             if (savedIdle != idleRefresh.intervalSeconds()) configureIdleRefresh(savedIdle);
-            if (dark != savedDark && web != null) {
-                dark = savedDark; getIntent().putExtra(SettingsStore.DARK, dark); ui.refresh(dark);
+            boolean motionChanged = setMotion(runtime.getBoolean(SettingsStore.ANIM_NUMBER, animNumber),
+                runtime.getBoolean(SettingsStore.ANIM_COMPLETE, animComplete), runtime.getInt(SettingsStore.ANIM_BOUNCE, animBounce));
+            if ((dark != savedDark || motionChanged) && web != null) {
+                if (dark != savedDark) { dark = savedDark; getIntent().putExtra(SettingsStore.DARK, dark); ui.refresh(dark); }
                 installDocumentScript(); applyLayout();
             }
             KioskController.resume(this);

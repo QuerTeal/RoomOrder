@@ -158,8 +158,17 @@ public final class AdminActivity extends Activity {
         sizes.check(settings.zoom()); display.addView(sizes);
         CheckBox dark = check(R.string.dark_mode, settings.dark()); dark.setId(R.id.dark_mode_toggle); display.addView(dark);
         display.addView(ui.text(R.string.dark_mode_help, 18));
+        display.addView(ui.text(R.string.motion_setting, 24));
+        CheckBox number = check(R.string.motion_number, settings.animNumber()); number.setId(R.id.motion_number); display.addView(number);
+        CheckBox complete = check(R.string.motion_complete, settings.animComplete()); complete.setId(R.id.motion_complete); display.addView(complete);
+        display.addView(ui.text(R.string.motion_bounce, 20));
+        String[] bounceOptions = getResources().getStringArray(R.array.motion_bounce_options);
+        int selectedBounce = 0;
+        for (int i = 0; i < Motion.BOUNCE.length; i++) if (Motion.BOUNCE[i] == settings.animBounce()) selectedBounce = i;
+        Spinner bounce = choices(R.id.motion_bounce, bounceOptions, selectedBounce);
+        display.addView(bounce, new LinearLayout.LayoutParams(-1, -2));
+        display.addView(ui.text(R.string.motion_help, 18));
         display.addView(ui.text(R.string.idle_refresh_setting, 24));
-        Spinner refresh = new Spinner(this); refresh.setId(R.id.idle_refresh_setting);
         String[] refreshOptions = new String[IdleRefresh.SECONDS.length];
         int selectedRefresh = 0;
         for (int i = 0; i < refreshOptions.length; i++) {
@@ -167,7 +176,28 @@ public final class AdminActivity extends Activity {
             refreshOptions[i] = seconds == 0 ? getString(R.string.idle_refresh_off) : getString(R.string.idle_refresh_seconds, seconds);
             if (seconds == settings.idleRefreshSeconds()) selectedRefresh = i;
         }
-        ArrayAdapter<String> refreshAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, refreshOptions) {
+        Spinner refresh = choices(R.id.idle_refresh_setting, refreshOptions, selectedRefresh);
+        display.addView(refresh, new LinearLayout.LayoutParams(-1, -2));
+        display.addView(ui.text(R.string.idle_refresh_help, 18));
+        CheckBox reload = check(R.string.reload_setting, false); display.addView(reload); display.addView(ui.text(R.string.reload_help, 18));
+        display.addView(ui.button(R.string.pin_change, v -> showPin(true), false));
+        display.addView(ui.button(R.string.kiosk_settings, v -> showKioskSettings(), false));
+        Button saveSettings = ui.button(R.string.save, v -> {
+            if (!authenticated) return;
+            if (!Rooms.valid(selectedRoom)) { Toast.makeText(this, R.string.choose_room, Toast.LENGTH_LONG).show(); return; }
+            Runnable save = () -> saveAndClose(wide.isChecked(), sizes.getCheckedRadioButtonId(), dark.isChecked(), reload.isChecked(), IdleRefresh.SECONDS[refresh.getSelectedItemPosition()],
+                number.isChecked(), complete.isChecked(), Motion.BOUNCE[bounce.getSelectedItemPosition()]);
+            if (selectedRoom != settings.room()) ui.dialog(ui.dialogBuilder(getString(R.string.room_change_title, selectedRoom))
+                .setMessage(R.string.room_change_message).setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.confirm, (d,w) -> save.run()));
+            else save.run();
+        }, true);
+        saveSettings.setId(R.id.save_settings); root.addView(saveSettings);
+        root.addView(ui.button(R.string.cancel, v -> finish(), false));
+    }
+    /** Large, readable choices; the selection is saved only with Save. */
+    private Spinner choices(int id, String[] options, int selected) {
+        Spinner spinner = new Spinner(this); spinner.setId(id);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, options) {
             private View readable(View view) {
                 TextView text = (TextView)view; text.setTextSize(20); text.setTextColor(ui.ink);
                 text.setMinHeight(ui.dp(64)); text.setGravity(Gravity.CENTER_VERTICAL);
@@ -178,26 +208,12 @@ public final class AdminActivity extends Activity {
             @Override public View getView(int position, View reuse, android.view.ViewGroup parent) { return readable(super.getView(position, reuse, parent)); }
             @Override public View getDropDownView(int position, View reuse, android.view.ViewGroup parent) { return readable(super.getDropDownView(position, reuse, parent)); }
         };
-        refresh.setAdapter(refreshAdapter); refresh.setSelection(selectedRefresh); refresh.setMinimumHeight(ui.dp(64));
-        display.addView(refresh, new LinearLayout.LayoutParams(-1, -2));
-        display.addView(ui.text(R.string.idle_refresh_help, 18));
-        CheckBox reload = check(R.string.reload_setting, false); display.addView(reload); display.addView(ui.text(R.string.reload_help, 18));
-        display.addView(ui.button(R.string.pin_change, v -> showPin(true), false));
-        display.addView(ui.button(R.string.kiosk_settings, v -> showKioskSettings(), false));
-        Button saveSettings = ui.button(R.string.save, v -> {
-            if (!authenticated) return;
-            if (!Rooms.valid(selectedRoom)) { Toast.makeText(this, R.string.choose_room, Toast.LENGTH_LONG).show(); return; }
-            Runnable save = () -> saveAndClose(wide.isChecked(), sizes.getCheckedRadioButtonId(), dark.isChecked(), reload.isChecked(), IdleRefresh.SECONDS[refresh.getSelectedItemPosition()]);
-            if (selectedRoom != settings.room()) ui.dialog(ui.dialogBuilder(getString(R.string.room_change_title, selectedRoom))
-                .setMessage(R.string.room_change_message).setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.confirm, (d,w) -> save.run()));
-            else save.run();
-        }, true);
-        saveSettings.setId(R.id.save_settings); root.addView(saveSettings);
-        root.addView(ui.button(R.string.cancel, v -> finish(), false));
+        spinner.setAdapter(adapter); spinner.setSelection(selected); spinner.setMinimumHeight(ui.dp(64));
+        return spinner;
     }
-    private void saveAndClose(boolean wide, int zoom, boolean dark, boolean reload, int idleSeconds) {
+    private void saveAndClose(boolean wide, int zoom, boolean dark, boolean reload, int idleSeconds, boolean animNumber, boolean animComplete, int animBounce) {
         if (!authenticated) return;
-        if (!settings.save(selectedRoom, wide, zoom, dark, idleSeconds)) { Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show(); return; }
+        if (!settings.save(selectedRoom, wide, zoom, dark, idleSeconds, animNumber, animComplete, animBounce)) { Toast.makeText(this, R.string.save_failed, Toast.LENGTH_LONG).show(); return; }
         if (getIntent().getBooleanExtra(SettingsStore.INITIAL, false)) {
             startActivity(new Intent(this, RoomPickerActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
         } else setResult(RESULT_OK, settings.snapshot().putExtra(SettingsStore.RELOAD, reload));

@@ -17,6 +17,9 @@ public final class RuntimeSettingsProvider extends ContentProvider {
         result.putBoolean(SettingsStore.AWAKE, settings.awake());
         result.putBoolean(SettingsStore.DARK, settings.dark());
         result.putInt(SettingsStore.IDLE_REFRESH, settings.idleRefreshSeconds());
+        result.putBoolean(SettingsStore.ANIM_NUMBER, settings.animNumber());
+        result.putBoolean(SettingsStore.ANIM_COMPLETE, settings.animComplete());
+        result.putInt(SettingsStore.ANIM_BOUNCE, settings.animBounce());
         return result;
     }
     @Override public Cursor query(Uri uri, String[] projection, String selection, String[] args, String sort) { throw new UnsupportedOperationException(); }

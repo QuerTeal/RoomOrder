@@ -28,6 +28,10 @@ if ($LASTEXITCODE -ne 0) { throw 'Session JavaScript syntax check failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Idle refresh test compilation failed' }
 & java -cp build\checks kr.dogdive.roomorder.IdleRefreshTest
 if ($LASTEXITCODE -ne 0) { throw 'Idle refresh tests failed' }
+& javac -encoding UTF-8 -d build\checks app\src\main\java\kr\dogdive\roomorder\Motion.java scripts\tests\MotionTest.java
+if ($LASTEXITCODE -ne 0) { throw 'Motion test compilation failed' }
+& java -cp build\checks kr.dogdive.roomorder.MotionTest
+if ($LASTEXITCODE -ne 0) { throw 'Motion tests failed' }
 & node --check app\src\main\assets\cart-maintenance.js
 if ($LASTEXITCODE -ne 0) { throw 'Cart maintenance syntax check failed' }
 [xml]$manifest = Get-Content -Raw app\src\main\AndroidManifest.xml

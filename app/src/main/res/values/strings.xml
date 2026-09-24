@@ -34,6 +34,18 @@
     <string name="app_name">테이블 주문</string>
     <string name="dark_mode">다크모드</string>
     <string name="dark_mode_help">어두운 배경으로 표시합니다. 저장하면 현재 주문 화면에 적용됩니다.</string>
+    <string name="motion_setting">애니메이션</string>
+    <string name="motion_number">금액·수량 숫자 굴림</string>
+    <string name="motion_complete">주문완료 화면 효과</string>
+    <string name="motion_bounce">담기 버튼 움직임</string>
+    <!-- Same order as Motion.BOUNCE: 0, 5, 10, 20 px. -->
+    <string-array name="motion_bounce_options">
+        <item>끔</item>
+        <item>작게 (5px)</item>
+        <item>중간 (10px)</item>
+        <item>원본 (20px)</item>
+    </string-array>
+    <string name="motion_help">토스 원본 효과입니다. 끄면 숫자와 화면을 바로 표시합니다. 저장하면 현재 주문 화면에 적용됩니다.</string>
     <string name="room_name">%1$d번방</string>
     <string name="back">뒤로</string>
     <string name="menu_home">메뉴 처음으로</string>

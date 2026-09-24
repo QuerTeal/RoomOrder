@@ -142,13 +142,51 @@
       html[data-room-tablet="on"] [data-room-complete-summary] {grid-column:1; padding:20px;}
       html[data-room-tablet="on"] [data-room-complete-history] {grid-column:1; grid-row:2;}
     }
+    /* Administrator animation settings, in either layout. Off shows the page's current value at rest. */
+    html[data-room-motion-bounce="off"] [data-room-cta] button {animation:none !important;}
+    html[data-room-motion-number="off"] [data-room-number] {width:auto !important; min-width:1ch; font:inherit; line-height:inherit;}
+    html[data-room-motion-number="off"] [data-room-number] > * {display:none !important;}
+    html[data-room-motion-number="off"] [data-room-number]::after {content:attr(aria-label); font:inherit; line-height:inherit; white-space:nowrap;}
+    html[data-room-motion-number="off"] [data-room-total] > div {width:auto !important;}
+    html[data-room-motion-number="off"] [data-room-total] > div > div {display:flex; align-items:baseline; gap:.12em;}
+    html[data-room-motion-number="off"] [data-room-total] [data-room-number] {height:auto !important; mask-image:none !important;}
+    html[data-room-motion-number="off"] [data-room-total] [data-room-number] ~ * {
+      position:static !important; transform:none !important; font:inherit; color:inherit;
+    }
+    html[data-room-motion-complete="off"] [data-room-complete-summary],
+    html[data-room-motion-complete="off"] [data-room-complete-history] {opacity:1 !important; transform:none !important;}
+    html[data-room-motion-complete="off"] [data-room-complete-summary] :is(.order_complete,.amount,.description) {
+      opacity:1 !important; transform:none !important; scale:none !important;
+    }
+    html[data-room-motion-complete="off"] [data-room-complete-intro] {display:none !important;}
+    html[data-room-motion-complete="off"] [data-room-complete-shell] > :not(main),
+    html[data-room-motion-complete="off"] [data-room-complete-panel],
+    html[data-room-motion-complete="off"] [data-room-complete-panel] :is(.dropdown_list,.dropdown_items) {
+      transform:none !important; scale:none !important;
+    }
   `;
   let enabled = window.__roomConfig?.wide !== false;
+  // Keep the page's own bounce timing and easing; only its vertical travel follows the setting.
+  const travel = new WeakMap(), lift = /translateY\((-?[\d.]+)px\)/;
+  function scaleBounce(button, size) {
+    for (const animation of button.getAnimations()) {
+      if (!(animation instanceof CSSAnimation)) continue;
+      let entry = travel.get(animation);
+      if (!entry) {
+        const frames = animation.effect.getKeyframes().map(({offset, easing, transform}) => transform ? {offset, easing, transform} : {offset, easing});
+        const peak = Math.max(0, ...frames.map(f => Math.abs(parseFloat(lift.exec(f.transform || '')?.[1]) || 0)));
+        entry = {frames, peak, size: peak}; travel.set(animation, entry);
+      }
+      if (!entry.peak || entry.size === size) continue;
+      entry.size = size;
+      animation.effect.setKeyframes(entry.frames.map(f => f.transform ? {...f, transform: f.transform.replace(lift, (_, v) => `translateY(${v * size / entry.peak}px)`)} : f));
+    }
+  }
   const marks = ['data-room-wide','data-room-grid','data-room-card','data-room-detail','data-room-cta',
-    'data-room-dialog','data-room-dialog-body','data-room-dialog-actions','data-room-category-fade',
+    'data-room-dialog','data-room-dialog-body','data-room-dialog-actions','data-room-category-fade','data-room-number',
     'data-room-complete','data-room-complete-content','data-room-complete-summary','data-room-complete-title',
     'data-room-complete-history','data-room-complete-panel','data-room-complete-toggle','data-room-complete-spacer','data-room-total',
-    'data-room-complete-shell','data-room-complete-fade'];
+    'data-room-complete-shell','data-room-complete-fade','data-room-complete-intro'];
   function apply() {
     const html = document.documentElement, main = document.querySelector('main');
     if (!html) return;
@@ -214,18 +252,32 @@
         if (list.previousElementSibling) mark(list.previousElementSibling, 'data-room-complete-toggle');
         const title = summary.querySelector('.tds-mobile-paragraph__text');
         if (title && title !== total) mark(title, 'data-room-complete-title');
-        mark(total, 'data-room-total');
+        mark(total, 'data-room-total'); mark(number, 'data-room-number');
         for (const child of content.children) if (child !== summary && child !== history && !child.childElementCount && !child.textContent.trim()) mark(child, 'data-room-complete-spacer');
+        // The transient intro (illustration, check and coupon teaser) floats over the results.
+        for (const child of content.children) if (child !== summary && child !== history && child.querySelector('img')
+          && getComputedStyle(child).position === 'absolute') mark(child, 'data-room-complete-intro');
       }
     }
     for (const button of document.querySelectorAll('.tds-mobile-bottom-cta__button')) {
       if (button.closest('dialog,[role="dialog"],[role="alertdialog"]')) continue;
       const fixed = button.closest('[style*="position: fixed"]');
-      if (fixed) mark(fixed, 'data-room-cta');
+      if (fixed) {
+        mark(fixed, 'data-room-cta');
+        for (const number of fixed.querySelectorAll('[aria-label]')) {
+          if (/^[\d,.\s+-]+$/.test(number.getAttribute('aria-label')) && number.querySelector('[style*="translateZ"]')) mark(number, 'data-room-number');
+        }
+      }
     }
     for (const name of marks) for (const element of document.querySelectorAll(`[${name}]`))
       if (!desired.get(name).has(element)) element.removeAttribute(name);
     html.setAttribute('data-room-tablet', enabled ? 'on' : 'off');
+    // The app replaces __roomConfig whenever the administrator saves.
+    const motion = window.__roomConfig?.motion || {}, bounce = Number.isFinite(motion.bounce) ? motion.bounce : 20;
+    html.setAttribute('data-room-motion-number', motion.number === false ? 'off' : 'on');
+    html.setAttribute('data-room-motion-complete', motion.complete === false ? 'off' : 'on');
+    html.setAttribute('data-room-motion-bounce', bounce > 0 ? 'on' : 'off');
+    for (const button of document.querySelectorAll('[data-room-cta] button')) scaleBounce(button, bounce);
     window.__roomInteraction?.layoutReady();
   }
   window.__roomTablet = { apply, setEnabled(value) { enabled = !!value; apply(); } };

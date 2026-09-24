@@ -14,6 +14,26 @@ public final class DarkModeCheck extends Instrumentation {
     private Bundle arguments;
     @Override public void onCreate(Bundle args) { arguments = args; start(); }
     private static void check(boolean value, String message) { if (!value) throw new AssertionError(message); }
+    /** Screenshot of the unlocked settings scrolled to the animation section, saved in the app's external files. */
+    private String previewMotion() throws Exception {
+        AdminActivity admin = (AdminActivity)startActivitySync(new Intent(getTargetContext(), AdminActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
+            runOnMainSync(() -> {
+                try {
+                    Field auth = AdminActivity.class.getDeclaredField("authenticated"); auth.setAccessible(true); auth.setBoolean(admin, true);
+                    Method show = AdminActivity.class.getDeclaredMethod("showSettings"); show.setAccessible(true); show.invoke(admin);
+                } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
+                admin.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            });
+            waitForIdleSync(); Thread.sleep(300);
+            runOnMainSync(() -> { android.view.View title = admin.findViewById(R.id.motion_number);
+                android.graphics.Rect r = new android.graphics.Rect(); title.getDrawingRect(r); title.requestRectangleOnScreen(r, true); });
+            waitForIdleSync(); Thread.sleep(500);
+            java.io.File file = new java.io.File(getTargetContext().getExternalFilesDir(null), "admin-motion.png");
+            try (var out = new java.io.FileOutputStream(file)) { getUiAutomation().takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out); }
+            return "SAVED: " + file;
+        } finally { runOnMainSync(admin::finish); waitForIdleSync(); }
+    }
     @Override public void onStart() {
         Bundle result = new Bundle();
         SettingsStore settings = new SettingsStore(getTargetContext());
@@ -25,11 +45,18 @@ public final class DarkModeCheck extends Instrumentation {
                 result.putString("stream", NativeUiAudit.run(this, settings) + "\n"); finish(Activity.RESULT_OK, result); return;
             } else if ("idleSettings".equals(arguments.getString("action"))) {
                 result.putString("stream", IdleSettingsAudit.run(this, settings) + "\n"); finish(Activity.RESULT_OK, result); return;
+            } else if ("motionSettings".equals(arguments.getString("action"))) {
+                result.putString("stream", MotionSettingsAudit.run(this, settings) + "\n"); finish(Activity.RESULT_OK, result); return;
+            } else if ("previewMotion".equals(arguments.getString("action"))) {
+                result.putString("stream", previewMotion() + "\n"); finish(Activity.RESULT_OK, result); return;
             } else if ("set".equals(arguments.getString("action"))) {
                 boolean dark = Boolean.parseBoolean(arguments.getString("dark"));
                 int nextZoom = Integer.parseInt(arguments.getString("zoom", Integer.toString(zoom)));
                 int idleSeconds = Integer.parseInt(arguments.getString("idleSeconds", Integer.toString(settings.idleRefreshSeconds())));
-                check(settings.save(room, wide, nextZoom, dark, idleSeconds), "Save failed");
+                boolean animNumber = Boolean.parseBoolean(arguments.getString("animNumber", Boolean.toString(settings.animNumber())));
+                boolean animComplete = Boolean.parseBoolean(arguments.getString("animComplete", Boolean.toString(settings.animComplete())));
+                int animBounce = Integer.parseInt(arguments.getString("animBounce", Integer.toString(settings.animBounce())));
+                check(settings.save(room, wide, nextZoom, dark, idleSeconds, animNumber, animComplete, animBounce), "Save failed");
                 check(KioskController.runtime(getTargetContext()).getBoolean(SettingsStore.DARK) == dark, "IPC mismatch");
             } else {
                 for (boolean dark : new boolean[]{true, false}) {
