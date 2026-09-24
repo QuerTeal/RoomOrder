@@ -1,6 +1,7 @@
 // Real read-only pages and display-only edge fixtures. All API writes are blocked.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import {tossModules,openConfirmDialog} from './toss-modules.mjs';
 const output=process.argv.find(a=>a.startsWith('--output='))?.slice(9)||'captures/ui-v241';
 const strict=process.argv.includes('--strict');fs.mkdirSync(output,{recursive:true});
 const pages=await(await fetch('http://127.0.0.1:9222/json/list')).json();
@@ -65,12 +66,11 @@ try{
  }
  const history=new URL(menu);history.pathname=history.pathname.replace(/\/menu$/,'/order/history');await navigate(history.href);await matrix('history');
  const cart=new URL(menu);cart.pathname=cart.pathname.replace(/\/menu$/,'/cart');await navigate(cart.href);await matrix('cart-empty');
- const dialog=fs.readFileSync('captures/transition-v232/open-dialog.js','utf8').replace('(23189)','(30454)');await evaluate(dialog);await delay(350);await matrix('confirmation');
+ await evaluate(tossModules);await evaluate(openConfirmDialog);await delay(350);await matrix('confirmation');
  await evaluate(`document.querySelector('[data-room-dialog-body] p').textContent+=' '.repeat(1)+'메뉴와 옵션, 수량을 확인해 주세요. '.repeat(18);window.__roomTablet.apply()`);await matrix('confirmation-long');
  await evaluate('window.__qaRoot.unmount()');await delay(200);
  await evaluate(`(() => {
-  window.webpackChunk_N_E.push([['room-matrix-qa'],{},r=>window.__qaRequire=r]);
-  const r=window.__qaRequire,React=r(94447),dom=r(22141),item=r(84371).Z.Item,counter=r(17316).P,h=React.createElement;
+  const t=window.__qaToss,React=t('React'),dom=t('ReactDOM'),item=t('Cart').Item,counter=t('NumericSpinner'),h=React.createElement;
   const host=document.createElement('div');document.body.replaceChildren(host);
   function Fixture(){const [quantity,setQuantity]=React.useState(99);return h('main',null,h('article',null,h('div',null,h(item,{top:'긴 메뉴 이름과 여러 옵션이 있는 장바구니 표시 테스트',bottom:'123,456원',onRemove:()=>{}}),h('div',{style:{display:'flex',justifyContent:'flex-end',padding:'0 24px 16px'}},h(counter,{size:'small',minNumber:1,number:quantity,onNumberChange:setQuantity})))));}
   dom.createRoot(host).render(h(Fixture));

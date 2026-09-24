@@ -1,6 +1,7 @@
 // Verify the cleanup adapter against original Toss cart components. All writes are local.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {tossModules} from './toss-modules.mjs';
 const output='captures/idle-v250';fs.mkdirSync(output,{recursive:true});
 const pages=await(await fetch('http://127.0.0.1:9222/json/list')).json(),page=pages.find(p=>p.type==='page'&&p.url.startsWith('https://toss-order.tossplace.com/'));
 assert.ok(page);
@@ -24,9 +25,8 @@ const cart=new URL(menu);cart.pathname=cart.pathname.replace(/\/menu$/,'/cart');
 const source=fs.readFileSync('app/src/main/assets/cart-maintenance.js','utf8');
 async function fresh(count=1){
  await call('Page.navigate',{url:cart.href});await delay(1000);await ready();
- await evaluate(`(() => {
-  window.webpackChunk_N_E.push([['idle-cart-test'],{},r=>window.__qaRequire=r]);
-  const r=window.__qaRequire,React=r(94447),dom=r(22141),item=r(84371).Z.Item,h=React.createElement;
+ await evaluate(tossModules);await evaluate(`(() => {
+  const t=window.__qaToss,React=t('React'),dom=t('ReactDOM'),item=t('Cart').Item,h=React.createElement;
   const data=document.getElementById('__NEXT_DATA__').cloneNode(true),empty=JSON.parse(data.textContent).props.pageProps._nextI18Next.initialI18nStore.ko.common['cart-page']['empty-cart'];
   const host=document.createElement('div');document.body.replaceChildren(data,host);
   function Fixture(){const [items,setItems]=React.useState(Array.from({length:${count}},(_,i)=>i));return h('main',null,items.length?h('article',null,...items.map(id=>h('div',{key:id},h(item,{top:'자동 정리 표시 검증 '+id,bottom:'0원',onRemove:async()=>{const response=await fetch('https://api-public.tossplace.com/api-public/table-order/v1/merchants/codex-idle-test/cart/line-items/'+id,{method:'DELETE'});if(response.ok)setItems(v=>v.filter(n=>n!==id));}})))):h('p',null,empty));}

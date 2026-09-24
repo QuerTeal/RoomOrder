@@ -2,6 +2,7 @@
 // Every API mutation is intercepted. No cart or order request reaches Toss.
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
+import {tossModules,openConfirmDialog} from './toss-modules.mjs';
 const output='captures/dark-v240';fs.mkdirSync(output,{recursive:true});
 const pages=await(await fetch('http://127.0.0.1:9222/json/list')).json();
 const page=pages.find(p=>p.type==='page'&&p.url.startsWith('https://toss-order.tossplace.com/'));
@@ -59,8 +60,7 @@ try{
  await inspect('menu-dark');await toggleWithoutReload('[data-room-card]');
  await evaluate('document.querySelector("[data-room-card] > li button[aria-labelledby]").click()');await ready(`document.documentElement.dataset.roomPage==='detail'`);
  await inspect('detail-dark');await toggleWithoutReload('form');
- // Current Toss bundle exports the same original dialog hook from module 30454.
- const dialog=fs.readFileSync('captures/transition-v232/open-dialog.js','utf8').replace('(23189)', '(30454)');await evaluate(dialog);await delay(350);
+ await evaluate(tossModules);await evaluate(openConfirmDialog);await delay(350);
  for(const [width,height] of [[1112,800],[856,600],[720,480]]){
   await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:2,mobile:false});
   await inspect(`confirmation-dark-${width}`);
@@ -71,9 +71,8 @@ try{
  const cart=new URL(menu);cart.pathname=cart.pathname.replace(/\/menu$/,'/cart');
  await evaluate('window.__qaPreviousDocument=true');await call('Page.navigate',{url:cart.href});await ready(`!window.__qaPreviousDocument && document.documentElement.dataset.roomPage==='cart'`);
  await inspect('cart-empty-dark');
- await evaluate(`(() => {
-  window.webpackChunk_N_E.push([['room-dark-qa'],{},r=>window.__qaRequire=r]);
-  const r=window.__qaRequire,React=r(94447),dom=r(22141),cart=r(84371).Z,counter=r(17316).P,h=React.createElement;
+ await evaluate(tossModules);await evaluate(`(() => {
+  const t=window.__qaToss,React=t('React'),dom=t('ReactDOM'),cart=t('Cart'),counter=t('NumericSpinner'),h=React.createElement;
   const host=document.createElement('div');document.body.replaceChildren(host);
   function Fixture(){const [quantity,setQuantity]=React.useState(2);return h('main',null,h('article',null,h('div',null,h(cart.Item,{top:'Dark theme verification',bottom:'0원',onRemove:()=>{}}),h('div',{style:{display:'flex',justifyContent:'flex-end',padding:'0 24px 16px'}},h(counter,{size:'small',minNumber:1,number:quantity,onNumberChange:setQuantity})))));}
   dom.createRoot(host).render(h(Fixture));

@@ -2,6 +2,7 @@
 // All API mutations are intercepted locally. No cart/order/payment reaches the server.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {tossModules} from './toss-modules.mjs';
 const output='captures/expiry-v234';fs.mkdirSync(output,{recursive:true});
 const pages=await(await fetch('http://127.0.0.1:9222/json/list')).json();
 const page=pages.find(p=>p.type==='page'&&p.url.startsWith('https://toss-order.tossplace.com/'));
@@ -33,9 +34,8 @@ async function until(expression){for(let n=0;n<50;n++){const value=await evaluat
 async function ready(){await until(`!window.__qaPreviousDocument && !!window.__roomInteraction && !window.__roomInteraction.state().busy && window.next?.router?.isReady && !!document.querySelector('main [role=tablist]')`);}
 async function openMenu(){await evaluate('window.__qaPreviousDocument=true');await call('Page.navigate',{url:menu.href});await ready();}
 async function renderQr(){
- await evaluate(`(() => {
-  window.webpackChunk_N_E.push([['room-expiry-qa'],{},r=>window.__qaRequire=r]);
-  const r=window.__qaRequire,React=r(94447),dom=r(22141),Expired=r(91665).Pb;
+ await evaluate(tossModules);await evaluate(`(() => {
+  const t=window.__qaToss,React=t('React'),dom=t('ReactDOM'),Expired=t('QrExpired');
   const host=document.createElement('div');document.body.replaceChildren(host);
   dom.createRoot(host).render(React.createElement(Expired));return true;
  })()`);

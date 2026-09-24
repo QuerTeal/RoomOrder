@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {tossModules} from './toss-modules.mjs';
 const output=process.argv.find(a=>a.startsWith('--output='))?.slice(9)||'captures/interaction-v233';fs.mkdirSync(output,{recursive:true});
 const pages=await(await fetch('http://127.0.0.1:9222/json/list')).json();
 const page=pages.find(p=>p.type==='page'&&p.url.startsWith('https://toss-order.tossplace.com/'));
@@ -68,9 +69,8 @@ try {
  await evaluate('window.__qaPreviousDocument=true');
  await call('Page.navigate',{url:cart.href});await ready(`!window.__qaPreviousDocument && window.next?.router?.isReady && location.pathname.endsWith('/cart') && document.documentElement.dataset.roomPage==='cart'`);
  // Only fixture handlers below generate requests; they use a test merchant and are intercepted above.
- await evaluate(`(() => {
-  window.webpackChunk_N_E.push([['room-cart-edit-qa'],{},r=>window.__qaRequire=r]);
-  const r=window.__qaRequire,React=r(94447),dom=r(22141),cart=r(84371).Z,counter=r(17316).P,h=React.createElement;
+ await evaluate(tossModules);await evaluate(`(() => {
+  const t=window.__qaToss,React=t('React'),dom=t('ReactDOM'),cart=t('Cart'),counter=t('NumericSpinner'),h=React.createElement;
   const heading=document.querySelector('h1')?.textContent||document.title;
   const host=document.createElement('div');document.body.replaceChildren(host);
   const endpoint='https://api-public.tossplace.com/api-public/table-order/v1/merchants/codex-local-verification/cart/line-items/fixture';
