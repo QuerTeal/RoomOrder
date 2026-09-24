@@ -140,6 +140,8 @@ pwsh -File .\scripts\verify-apks.ps1
 
 `tablet-release.jks`와 `signing.properties`는 업데이트 서명용 비공개 자료입니다. 두 파일은 Git과 배포 묶음에서 제외하고 별도로 백업합니다. 같은 키와 증가한 versionCode로 업데이트합니다.
 
+두 파일이 없으면 `build.ps1`은 빌드를 멈추고 백업 복원을 안내합니다. 새 키로 서명한 APK는 설치된 태블릿을 업데이트할 수 없기 때문입니다. 처음 배포할 때만 `-CreateReleaseKey`를 붙여 새 키를 만듭니다.
+
 주요 파일:
 
 - `app/src/main/java/kr/dogdive/roomorder/AdminActivity.java`: PIN 인증과 관리자 설정

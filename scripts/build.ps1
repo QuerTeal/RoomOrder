@@ -1,4 +1,4 @@
-param([string]$SdkPath = "$env:LOCALAPPDATA\Android\Sdk", [string]$GradlePath = '')
+param([string]$SdkPath = "$env:LOCALAPPDATA\Android\Sdk", [string]$GradlePath = '', [switch]$CreateReleaseKey)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location -LiteralPath $projectRoot
@@ -6,6 +6,9 @@ if (!(Test-Path -LiteralPath "$SdkPath\platforms\android-36\android.jar")) { thr
 "sdk.dir=$($SdkPath.Replace('\','/').Replace(':','\:'))" | Set-Content -Encoding utf8 local.properties
 if (!(Test-Path -LiteralPath signing.properties)) {
     if (Test-Path -LiteralPath tablet-release.jks) { throw 'Restore signing.properties for the existing key. Do not replace the release key.' }
+    # Installed tablets accept updates only from the original key; a new key needs a reinstall and loses PIN/settings.
+    if (!$CreateReleaseKey) { throw 'Release key not found. Restore tablet-release.jks and signing.properties from backup. Use -CreateReleaseKey only for a first release: tablets signed with the old key cannot be updated.' }
+    Write-Warning 'Creating a NEW release key. Back up tablet-release.jks and signing.properties outside this folder.'
     $keyPassword = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
     $env:ROOM_ORDER_KEY_PASSWORD = $keyPassword
     try {
