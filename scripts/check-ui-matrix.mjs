@@ -50,14 +50,14 @@ try{
    await evaluate(`document.querySelector('button[aria-label="더하기"]').click()`);await ready();
    const markup=await evaluate('document.querySelector("[data-room-cta]")?.outerHTML');fs.writeFileSync(`${output}/cta-markup.html`,markup||'');
   } else if(strict) {
-   const read=`[...document.querySelectorAll('[data-room-cta] [data-room-number]')].map(e=>({value:Number(e.getAttribute('aria-label').replaceAll(',','')),rendered:getComputedStyle(e,'::after').content,source:e.getAttribute('aria-label'),childrenHidden:[...e.children].every(c=>getComputedStyle(c).display==='none')}))`;
+   const read=`[...document.querySelectorAll('[data-room-cta] [aria-label]')].filter(e=>/^[\\d,.\\s+-]+$/.test(e.getAttribute('aria-label'))).map(e=>({value:Number(e.getAttribute('aria-label').replaceAll(',','')),source:e.getAttribute('aria-label'),rolling:[...e.querySelectorAll('*')].some(c=>getComputedStyle(c).maskImage?.includes('gradient')&&getComputedStyle(c).display!=='none')}))`;
    const initial=await evaluate(read);assert.equal(initial.length,2);const unit=initial[1].value/initial[0].value;
    for(const [label,delta] of [['더하기',1],['빼기',-1]]){
     const before=await evaluate(read),point=await evaluate(`(() => {const r=document.querySelector('button[aria-label="${label}"]').getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2};})()`);
     await call('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});await call('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-    await ready(`Number(document.querySelector('[data-room-number]').getAttribute('aria-label'))===${before[0].value+delta}`);
+    await ready(`(${read})[0]?.value===${before[0].value+delta}`);
     const after=await evaluate(read);assert.equal(after[0].value,before[0].value+delta);assert.equal(after[1].value,after[0].value*unit);
-    assert.ok(after.every(v=>v.childrenHidden&&JSON.parse(v.rendered)===v.source),'Displayed number differs from page value');
+    assert.ok(after.every(v=>v.rolling),'Original rolling digits are not shown');
    }
    fs.writeFileSync(`${output}/numeric-touch-check.json`,JSON.stringify({pass:true,touches:2,originalValues:initial,finalValues:await evaluate(read),mutations},null,2));
   }

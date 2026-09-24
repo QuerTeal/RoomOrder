@@ -67,13 +67,9 @@
       html[data-room-tablet="on"] [data-room-cta] {width:100% !important; max-width:100% !important;}
       html[data-room-tablet="on"] [data-room-cta] button {
         min-height:72px !important; --button-font-size:22px !important; font-size:22px !important;
-        animation:none !important;
       }
+      /* Also keeps the quantity badge's rolling digit inside its box at larger text sizes. */
       html[data-room-tablet="on"] [data-room-cta] .tds-mobile-paragraph__text {line-height:1.5 !important; width:auto !important; height:auto !important; min-width:28px;}
-      /* The page owns the live accessible value. Show it without animated digit masks. */
-      html[data-room-tablet="on"] [data-room-number] {width:auto !important; min-width:1ch; font:inherit; line-height:inherit;}
-      html[data-room-tablet="on"] [data-room-number] > * {display:none !important;}
-      html[data-room-tablet="on"] [data-room-number]::after {content:attr(aria-label); font:inherit; line-height:inherit; white-space:nowrap;}
       html[data-room-tablet="on"] main .tds-mobile-bottom-cta__spacer {height:140px !important;}
       html[data-room-tablet="on"] [data-room-dialog] {
         width:min(560px,calc(100vw - 48px)) !important; max-width:calc(100vw - 48px) !important;
@@ -113,13 +109,8 @@
       html[data-room-tablet="on"] [data-room-complete-content] > * {min-width:0; grid-column:1 / -1;}
       html[data-room-tablet="on"] [data-room-complete-summary] {
         grid-column:1; grid-row:1; padding:36px 20px; border-radius:20px;
-        background:var(--room-surface,#fff); border:1px solid var(--room-border,#d7dee8);
-        opacity:1 !important; transform:none !important; box-sizing:border-box;
+        background:var(--room-surface,#fff); border:1px solid var(--room-border,#d7dee8); box-sizing:border-box;
       }
-      html[data-room-tablet="on"] [data-room-complete-summary] :is(.order_complete,.amount,.description) {
-        opacity:1 !important; transform:none !important; scale:none !important;
-      }
-      html[data-room-tablet="on"] [data-room-complete-summary] .blue_check {display:none !important;}
       html[data-room-tablet="on"] [data-room-complete-title] {
         --tds-paragraph-text-font-size:26px !important; --tds-paragraph-font-weight:700 !important;
         --tds-paragraph-color:var(--room-ink,#191f28) !important; color:var(--room-ink,#191f28) !important;
@@ -128,24 +119,10 @@
         font-size:clamp(28px,3.4vw,40px) !important; line-height:1.4 !important;
         color:var(--room-ink,#191f28) !important; white-space:nowrap;
       }
-      html[data-room-tablet="on"] [data-room-total] > div {width:auto !important;}
-      html[data-room-tablet="on"] [data-room-total] > div > div {display:flex; align-items:baseline; gap:.12em;}
-      html[data-room-tablet="on"] [data-room-total] [data-room-number] {height:auto !important; mask-image:none !important;}
-      html[data-room-tablet="on"] [data-room-total] [data-room-number] ~ * {
-        position:static !important; transform:none !important; font:inherit; color:inherit;
-      }
-      html[data-room-tablet="on"] [data-room-complete-history] {
-        grid-column:2; grid-row:1; opacity:1 !important; transform:none !important;
-      }
+      html[data-room-tablet="on"] [data-room-complete-history] {grid-column:2; grid-row:1;}
       html[data-room-tablet="on"] [data-room-complete-history] > div {padding:0 !important;}
       html[data-room-tablet="on"] [data-room-complete-panel] {
         background:var(--room-surface,#fff) !important; border:1px solid var(--room-border,#d7dee8); border-radius:20px;
-      }
-      /* Avoid scaled text layers left behind by the page's press/intro animations. */
-      html[data-room-tablet="on"] [data-room-complete-shell] > :not(main),
-      html[data-room-tablet="on"] [data-room-complete-panel],
-      html[data-room-tablet="on"] [data-room-complete-panel] :is(.dropdown_list,.dropdown_items) {
-        transform:none !important; scale:none !important;
       }
       html[data-room-tablet="on"] [data-room-complete-toggle] {min-height:72px; padding:16px 20px !important; box-sizing:border-box;}
       html[data-room-tablet="on"] [data-room-complete-toggle] .tds-mobile-paragraph__text {
@@ -168,7 +145,7 @@
   `;
   let enabled = window.__roomConfig?.wide !== false;
   const marks = ['data-room-wide','data-room-grid','data-room-card','data-room-detail','data-room-cta',
-    'data-room-dialog','data-room-dialog-body','data-room-dialog-actions','data-room-category-fade','data-room-number',
+    'data-room-dialog','data-room-dialog-body','data-room-dialog-actions','data-room-category-fade',
     'data-room-complete','data-room-complete-content','data-room-complete-summary','data-room-complete-title',
     'data-room-complete-history','data-room-complete-panel','data-room-complete-toggle','data-room-complete-spacer','data-room-total',
     'data-room-complete-shell','data-room-complete-fade'];
@@ -237,19 +214,14 @@
         if (list.previousElementSibling) mark(list.previousElementSibling, 'data-room-complete-toggle');
         const title = summary.querySelector('.tds-mobile-paragraph__text');
         if (title && title !== total) mark(title, 'data-room-complete-title');
-        mark(total, 'data-room-total'); mark(number, 'data-room-number');
+        mark(total, 'data-room-total');
         for (const child of content.children) if (child !== summary && child !== history && !child.childElementCount && !child.textContent.trim()) mark(child, 'data-room-complete-spacer');
       }
     }
     for (const button of document.querySelectorAll('.tds-mobile-bottom-cta__button')) {
       if (button.closest('dialog,[role="dialog"],[role="alertdialog"]')) continue;
       const fixed = button.closest('[style*="position: fixed"]');
-      if (fixed) {
-        mark(fixed, 'data-room-cta');
-        for (const number of fixed.querySelectorAll('[aria-label]')) {
-          if (/^[\d,.\s+-]+$/.test(number.getAttribute('aria-label')) && number.querySelector('[style*="translateZ"]')) mark(number, 'data-room-number');
-        }
-      }
+      if (fixed) mark(fixed, 'data-room-cta');
     }
     for (const name of marks) for (const element of document.querySelectorAll(`[${name}]`))
       if (!desired.get(name).has(element)) element.removeAttribute(name);

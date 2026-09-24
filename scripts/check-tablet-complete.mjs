@@ -32,9 +32,13 @@ const menu=new URL(page.url);menu.pathname=menu.pathname.replace(/\/(menu|cart|o
 const complete=new URL(menu);complete.pathname=complete.pathname.replace(/\/menu$/,'/order/complete');
 const measure=`(() => {
  const rect=e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,right:r.right,bottom:r.bottom};};
- const summary=document.querySelector('[data-room-complete-summary]'),total=document.querySelector('[data-room-total]'),number=total?.querySelector('[data-room-number]'),panel=document.querySelector('[data-room-complete-panel]'),toggle=document.querySelector('[data-room-complete-toggle]');
+ const summary=document.querySelector('[data-room-complete-summary]'),total=document.querySelector('[data-room-total]'),number=total?.querySelector('[aria-label]'),panel=document.querySelector('[data-room-complete-panel]'),toggle=document.querySelector('[data-room-complete-toggle]');
+ // The original rolling digits and the separately positioned currency unit, as painted.
+ const range=document.createRange();if(total)range.selectNodeContents(total);const glyphs=total?[...range.getClientRects()].filter(b=>b.width>0):[];
+ const unit=total&&[...total.querySelectorAll('*')].find(e=>!e.childElementCount&&/^[^\\d\\s.,]+$/.test(e.textContent.trim()));
  return {viewport:[innerWidth,innerHeight],page:document.documentElement.dataset.roomPage,overflow:document.documentElement.scrollWidth>innerWidth+1,
- summary:summary&&rect(summary),total:total&&rect(total),number:number&&{value:number.getAttribute('aria-label'),rendered:getComputedStyle(number,'::after').content,childrenHidden:[...number.children].every(e=>getComputedStyle(e).display==='none')},
+ summary:summary&&rect(summary),total:total&&rect(total),ink:glyphs.length?{x:Math.min(...glyphs.map(b=>b.left)),right:Math.max(...glyphs.map(b=>b.right))}:null,
+ number:number&&{value:number.getAttribute('aria-label'),rolling:[...number.querySelectorAll('*')].some(e=>getComputedStyle(e).maskImage?.includes('gradient')),box:rect(number)},unit:unit&&{text:unit.textContent.trim(),...rect(unit)},
  panel:panel&&{...rect(panel),background:getComputedStyle(panel).backgroundColor},toggle:toggle&&rect(toggle),title:document.querySelector('[data-room-complete-title]')?.textContent,
  summaryText:summary?.innerText,items:document.querySelectorAll('.dropdown_items .tds-mobile-list-row').length,
  listHeight:document.querySelector('.dropdown_list')?.getBoundingClientRect().height};
@@ -53,8 +57,10 @@ try {
    else await call('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:false});
    await evaluate(`window.__roomTheme.setDark(${dark});window.__roomTablet.apply()`);await delay(500);
    const value=await evaluate(measure);results.push({name,dark,...value});
-   assert.equal(value.page,'complete');assert.equal(value.overflow,false);assert.equal(value.number.value,'123,456');assert.equal(JSON.parse(value.number.rendered),'123,456');assert.ok(value.number.childrenHidden);
-   assert.ok(value.total.x>=value.summary.x && value.total.right<=value.summary.right,'Amount exceeds summary');
+   assert.equal(value.page,'complete');assert.equal(value.overflow,false);assert.equal(value.number.value,'123,456');assert.ok(value.number.rolling,'Original rolling digits are not shown');
+   assert.ok(value.ink.x>=value.summary.x && value.ink.right<=value.summary.right,'Amount exceeds summary');
+   // The unit stays on the amount's line and after its digits.
+   assert.ok(value.unit && value.unit.right>=value.ink.right-1 && value.unit.y>=value.total.y-2 && value.unit.bottom<=value.total.bottom+2,'Currency unit left the amount line');
    assert.ok(value.toggle.h>=71.9 && value.toggle.y>=0 && value.toggle.bottom<=height,'History toggle clipped');
    assert.ok(value.summary.right<=width&&value.panel.right<=width);
    if(width>=960)assert.ok(Math.abs(value.summary.y-value.panel.y)<2,'Summary and history should be side by side');
