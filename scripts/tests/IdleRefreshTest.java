@@ -25,6 +25,15 @@ public final class IdleRefreshTest {
         rest.postponeWarning(200_000); check(rest.resting());
         rest.touch(300_000); check(!rest.resting()); check(rest.remainingSeconds(300_000) == 60);
         rest.rest(400_000); rest.configure(80, 400_000); check(!rest.resting());
-        System.out.println("PASS: 60/80/100-second deadlines, warning, touch cancellation, busy postponement, disabled mode, invalid settings and rest until touch");
+        long interval = IdleRefresh.SESSION_REFRESH_MS;
+        IdleRefresh session = new IdleRefresh(100, 0);
+        check(!session.sessionRefreshDue(10 * interval));
+        session.rest(1_000); check(!session.sessionRefreshDue(1_000 + interval - 1)); check(session.sessionRefreshDue(1_000 + interval));
+        session.postponeWarning(1_000 + interval); check(session.sessionRefreshDue(1_000 + interval));
+        session.rest(1_000 + interval); check(!session.sessionRefreshDue(1_000 + 2 * interval - 1)); check(session.sessionRefreshDue(1_000 + 2 * interval));
+        session.touch(1_000 + 2 * interval); check(!session.sessionRefreshDue(1_000 + 20 * interval));
+        session.rest(0); session.configure(0, 0); check(!session.sessionRefreshDue(interval));
+        check(interval <= 10 * 60_000L);
+        System.out.println("PASS: 60/80/100-second deadlines, warning, touch cancellation, busy postponement, disabled mode, invalid settings, rest until touch and 10-minute session reopen while resting");
     }
 }

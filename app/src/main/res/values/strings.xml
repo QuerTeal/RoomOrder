@@ -2,7 +2,7 @@
     <string name="idle_refresh_setting">미조작 시 자동 정리</string>
     <string name="idle_refresh_off">사용 안 함</string>
     <string name="idle_refresh_seconds">%1$d초 미조작 후</string>
-    <string name="idle_refresh_help">터치가 없으면 장바구니를 비우고 같은 방 메뉴를 다시 엽니다. 마지막 60초에 안내하고, 터치하면 취소됩니다. 정리 후에는 다음 터치까지 쉬며, 주문·결제 중에는 보류합니다.</string>
+    <string name="idle_refresh_help">터치가 없으면 장바구니를 비우고 같은 방 메뉴를 다시 엽니다. 마지막 60초에 안내하고, 터치하면 취소됩니다. 정리 후에는 다음 터치까지 쉬며, 쉬는 동안 10분마다 같은 방 QR로 다시 접속해 QR 만료를 막습니다. 주문·결제 중에는 보류합니다.</string>
     <string name="idle_countdown">자동 정리\n%1$d:%2$02d</string>
     <string name="idle_warning">%1$d초 후\n자동 정리\n터치하면 취소</string>
     <string name="idle_waiting">자동 정리\n대기 중</string>

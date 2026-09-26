@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.RenderProcessGoneDetail;
@@ -68,7 +69,7 @@ public abstract class MainActivity extends Activity {
     // 0: idle, 1: delete original cart rows, 2: verify a fresh GET, 3: reopen QR.
     private int maintenancePhase, maintenanceLoadEpoch;
     private long maintenanceStarted, maintenanceQueryId, maintenanceProbeStarted;
-    private boolean maintenanceProbe, maintenanceFailed, maintenanceAwaitingLoad;
+    private boolean maintenanceProbe, maintenanceFailed, maintenanceAwaitingLoad, swallowTouch;
     private String maintenanceCartUrl, lastOrderUrl;
     private static final String CLEANABLE_PATH = ".*/(menu(/[^/]+)?|cart|order/(history|complete))/?";
     private final Runnable maintenanceCheck = () -> checkMaintenance();
@@ -388,6 +389,8 @@ public abstract class MainActivity extends Activity {
             source.getIntExtra(SettingsStore.ANIM_BOUNCE, animBounce));
     }
     private void loadRoom() { if (web != null) web.loadUrl(Rooms.url(this, roomNumber())); }
+    /** GET the room QR again, retry network failures and drop the replaced history once the menu is ready. */
+    private void reopenRoom() { discardEndedHistory = true; startupRecovery = true; startupRetries = 0; loadRoom(); }
     private void showReadyStatus() { status.setText(recoveryNotice ? getString(R.string.engine_recovered_notice) : ""); }
     private void checkSession() {
         if (!visible || web == null || isDestroyed()) return;
@@ -411,7 +414,7 @@ public abstract class MainActivity extends Activity {
                 if (ready && discardEndedHistory) { web.clearHistory(); discardEndedHistory = false; }
                 if (ended) status.setText(action == SessionRecovery.EXHAUSTED ? R.string.session_return_paused : R.string.session_returning);
                 else if (!failed) showReadyStatus();
-                if (action == SessionRecovery.RETURN) { discardEndedHistory = true; startupRecovery = true; startupRetries = 0; loadRoom(); }
+                if (action == SessionRecovery.RETURN) reopenRoom();
             } catch (JSONException e) { sessionRecovery.pause(); }
             scheduleSessionCheck();
         });
@@ -433,6 +436,24 @@ public abstract class MainActivity extends Activity {
         startupRecovery = false; retryScheduled = false; reconnectHandler.removeCallbacks(startupRetry);
     }
     @Override public void onUserInteraction() { super.onUserInteraction(); stopStartupRecovery(); if (maintenancePhase == 0) resetIdleRefresh(); }
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) swallowTouch = reopenBeforeTouch(event);
+        if (!swallowTouch) return super.dispatchTouchEvent(event);
+        if (event.getActionMasked() == MotionEvent.ACTION_UP || event.getActionMasked() == MotionEvent.ACTION_CANCEL) swallowTouch = false;
+        return true;
+    }
+    /** When the resting keep-alive could not run (screen off, no focus, network), the first touch on the page
+        reopens the room QR instead of reaching a lapsed table session. The rail buttons keep working. */
+    private boolean reopenBeforeTouch(MotionEvent event) {
+        if (web == null || failed || maintenancePhase != 0 || maintenanceFailed || !idleRefresh.sessionRefreshDue(SystemClock.elapsedRealtime())) return false;
+        Uri uri = Uri.parse(web.getUrl() == null ? "" : web.getUrl());
+        if (!trustedPage(web.getUrl()) || uri.getPath() == null || !uri.getPath().matches(".*/menu/?")) return false;
+        int[] origin = new int[2]; web.getLocationOnScreen(origin);
+        float x = event.getRawX() - origin[0], y = event.getRawY() - origin[1];
+        if (x < 0 || y < 0 || x >= web.getWidth() || y >= web.getHeight()) return false;
+        resetIdleRefresh(); reopenRoom();
+        return true;
+    }
     private void configureIdleRefresh(int seconds) {
         getIntent().putExtra(SettingsStore.IDLE_REFRESH, IdleRefresh.clamp(seconds));
         idleRefresh.configure(seconds, SystemClock.elapsedRealtime()); resetIdleRefresh();
@@ -493,7 +514,8 @@ public abstract class MainActivity extends Activity {
         boolean enabled = idleRefresh.enabled() && !maintenanceScript.isEmpty();
         boolean resting = maintenancePhase == 0 && !maintenanceFailed && idleRefresh.resting();
         idleCountdown.setVisibility(enabled && !resting ? View.VISIBLE : View.GONE);
-        if (!enabled || resting) return;
+        if (!enabled) return;
+        if (resting) { keepSessionAlive(now); return; }
         if (maintenanceFailed) { idleCountdown.setText(R.string.idle_failed); return; }
         if (maintenancePhase != 0 && now - maintenanceStarted > 120_000) { finishMaintenance(false); return; }
         if (!getWindow().getDecorView().hasWindowFocus() || failed) {
@@ -564,6 +586,29 @@ public abstract class MainActivity extends Activity {
             } catch (JSONException e) { if (phase != 0) finishMaintenance(false); }
         });
     }
+    /** Resting means cleanup verified an empty cart and nobody touched since, so reopening the room QR on the
+        idle menu loses nothing and keeps Toss's table session from lapsing before the next visitor. */
+    private void keepSessionAlive(long now) {
+        if (maintenanceProbe) {
+            if (now - maintenanceProbeStarted > 5000) { maintenanceQueryId++; maintenanceProbe = false; }
+            return;
+        }
+        if (!idleRefresh.sessionRefreshDue(now) || failed || !getWindow().getDecorView().hasWindowFocus() || !trustedPage(web.getUrl())) return;
+        final long query = ++maintenanceQueryId;
+        final int page = pageEpoch;
+        maintenanceProbe = true; maintenanceProbeStarted = now;
+        web.evaluateJavascript("window.__roomMaintenance ? window.__roomMaintenance.snapshot() : null", value -> {
+            if (query != maintenanceQueryId) return;
+            maintenanceProbe = false;
+            if (!visible || web == null || isDestroyed() || page != pageEpoch || maintenancePhase != 0 || !idleRefresh.resting()) return;
+            try {
+                JSONObject state = new JSONObject(value);
+                if (!state.optString("href").equals(web.getUrl()) || !state.optBoolean("safe") || !state.optBoolean("menu")) return;
+                if (BuildConfig.DEBUG) android.util.Log.i("RoomMaintenance", "session keep-alive");
+                idleRefresh.rest(SystemClock.elapsedRealtime()); reopenRoom();
+            } catch (JSONException e) { /* Not an inspectable menu yet; the next tick checks again. */ }
+        });
+    }
     private void showError(String message) {
         setTransition(false, "loading");
         failed = true; status.setText(R.string.connection_check); progress.setVisibility(View.GONE);
@@ -612,7 +657,9 @@ public abstract class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume(); visible = true; if (web != null) web.onResume(); scheduleStartupRetry();
-        resetIdleRefresh(); scheduleMaintenance();
+        // A rest that outlived the session interval stays so the QR reopens before the first touch.
+        if (!idleRefresh.sessionRefreshDue(SystemClock.elapsedRealtime())) resetIdleRefresh();
+        scheduleMaintenance();
         scheduleSessionCheck();
         try {
             Bundle runtime = KioskController.runtime(this);
