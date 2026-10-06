@@ -25,6 +25,8 @@
   - 회귀: `scripts/check-qr-expiry.mjs` 4개 경우 통과, 서버 변경 요청 0회
 - 실제 Wi-Fi 끊김에서 Android 연결 확인 신호로 즉시 다시 여는 경로는 실행하지 않았습니다.
 
+2.7.0 배포 APK: 3,114,139바이트. SHA-256: `9c31a150bad35866896978c5819079ec0b5959329a1d9857cda1bd2f9290add7`. 업데이트 주소(`roomorder.updateRepo`)가 비어 있는 빌드이므로 이 APK는 자동 업데이트를 확인하지 않습니다. 릴리스 빌드·Lint(오류 0 / 기존 경고 15)·기존 키 서명·API 33·가로 Activity·방별 독립 프로세스 검사를 통과했습니다. 기존 배포 앱 위 설치(데이터 유지)는 이번에 다시 실행하지 않았습니다.
+
 증빙: `captures/unavailable/`의 `toss-unavailable-stuck.png`, `after-offline-click.png`, `after-network-retry-2.png`, `qr-expiry-regression.log`.
 
 ## 2.6.1 장시간 대기 후 QR 만료 방지
