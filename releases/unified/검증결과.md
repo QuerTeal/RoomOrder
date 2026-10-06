@@ -8,7 +8,7 @@
 - Java 검사(`UpdatePolicyTest`: 시간대, 확인 간격·시계 되돌림, 쉬는 중·영업 시간·미검증·확인 필요 차단, 저장소 주소·HTTP·다른 호스트·경로 우회·해시 형식·같거나 낮은 버전 거부)를 통과했습니다.
 - 실물 태블릿(개발 앱, 테스트 APK의 `updateAudit`): 해시가 다른 파일과 다른 패키지·서명키의 APK(배포용 2.6.1)는 설치 세션을 만들기 전에 거부했습니다.
 - **같은 태블릿에서 정상 APK(versionCode 20, 같은 키)의 설치는 끝나지 않았습니다.** 앱이 만든 설치 세션이 커밋 뒤 80%에서 멈췄고, Android가 `com.google.android.verifier.backport` 검증 서비스(이 기기에 없음)에 연결을 시도한 뒤 4분 넘게 결과(설치·확인 요청·실패)를 보내지 않았습니다. 같은 기기에서 adb 설치는 Play 스토어 검증을 1초 안에 통과했습니다. 앱이 직접 설치하는 경로에 적용되는 Google의 개발자 확인(developer verification) 절차로 보이나 확정하지 못했습니다. 확인 화면이 손님 화면에 표시되지 않았고 앱 버전도 바뀌지 않았으며, 남은 세션은 검사 후 취소했습니다.
-- 검사 기기: Hyjoy/P11, Android 13, 보안 패치 2023-06-05, Google Play 서비스 26.36.33. 매장 태블릿에서 `지금 설치` 또는 새벽 자동 설치가 실제로 끝나는지 확인이 필요합니다. 업데이트 주소(`roomorder.updateRepo`)가 아직 비어 있어 실제 GitHub 확인·다운로드도 실행하지 않았습니다.
+- 검사 기기: Hyjoy/P11, Android 13, 보안 패치 2023-06-05, Google Play 서비스 26.36.33. 매장 태블릿에서 `지금 설치` 또는 새벽 자동 설치가 실제로 끝나는지 확인이 필요합니다. 태블릿의 GitHub 확인·다운로드는 새 버전이 올라간 뒤 실제 태블릿에서 확인이 필요합니다.
 
 증빙: `captures/unavailable/admin-update.png`.
 
@@ -25,7 +25,7 @@
   - 회귀: `scripts/check-qr-expiry.mjs` 4개 경우 통과, 서버 변경 요청 0회
 - 실제 Wi-Fi 끊김에서 Android 연결 확인 신호로 즉시 다시 여는 경로는 실행하지 않았습니다.
 
-2.7.0 배포 APK: 3,114,139바이트. SHA-256: `9c31a150bad35866896978c5819079ec0b5959329a1d9857cda1bd2f9290add7`. 업데이트 주소(`roomorder.updateRepo`)가 비어 있는 빌드이므로 이 APK는 자동 업데이트를 확인하지 않습니다. 릴리스 빌드·Lint(오류 0 / 기존 경고 15)·기존 키 서명·API 33·가로 Activity·방별 독립 프로세스 검사를 통과했습니다. 기존 배포 앱 위 설치(데이터 유지)는 이번에 다시 실행하지 않았습니다.
+2.7.0 배포 APK: 3,114,175바이트. SHA-256: `f243f6e6f53b2b2b1b6362d3ad8c6e1c41239203e2251e64b0d3e77bc049d9f9`. 업데이트 저장소 `QuerTeal/RoomOrder-releases`(공개, 배포 파일만)를 확인하는 빌드이며, 같은 파일을 이 저장소의 v2.7.0 릴리스로 올렸습니다. 릴리스 빌드·Lint(오류 0 / 기존 경고 15)·기존 키 서명·API 33·가로 Activity·방별 독립 프로세스 검사를 통과했습니다. 기존 배포 앱 위 설치(데이터 유지)는 이번에 다시 실행하지 않았습니다.
 
 증빙: `captures/unavailable/`의 `toss-unavailable-stuck.png`, `after-offline-click.png`, `after-network-retry-2.png`, `qr-expiry-regression.log`.
 

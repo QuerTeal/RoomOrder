@@ -15,7 +15,7 @@ GitHub Releases에 올린 새 버전을 태블릿이 스스로 받아 설치합�
 
 배포하는 방법:
 
-1. 업데이트 파일은 배포 전용 공개 저장소 [QuerTeal/RoomOrder-releases](https://github.com/QuerTeal/RoomOrder-releases)에 올립니다(소스 코드는 비공개 저장소 QuerTeal/RoomOrder). `gradle.properties`의 `roomorder.updateRepo`에 설정되어 있으며, 이 값이 들어간 빌드부터 업데이트를 확인합니다. 2.7.0 배포 APK는 이 값이 비어 있던 빌드이므로 자동 업데이트를 확인하지 않습니다.
+1. 업데이트 파일은 배포 전용 공개 저장소 [QuerTeal/RoomOrder-releases](https://github.com/QuerTeal/RoomOrder-releases)에 올립니다(소스 코드는 비공개 저장소 QuerTeal/RoomOrder). `gradle.properties`의 `roomorder.updateRepo`에 설정되어 있으며, 이 값이 들어간 빌드부터 업데이트를 확인합니다. 2.7.0 배포 APK부터 이 저장소를 확인합니다.
 2. `app/build.gradle`의 versionCode를 올리고 `pwsh -File .scriptsuild.ps1`로 서명 APK를 만듭니다.
 3. GitHub CLI(`gh auth login`)를 준비한 뒤 `pwsh -File .scriptspublish-update.ps1`을 실행합니다. APK와 `update.json`(버전·SHA-256)을 최신 릴리스로 올립니다. `-DryRun`으로 `update.json`만 만들어 볼 수 있습니다.
 
