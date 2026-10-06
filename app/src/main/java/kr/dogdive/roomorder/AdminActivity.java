@@ -182,6 +182,7 @@ public final class AdminActivity extends Activity {
         CheckBox reload = check(R.string.reload_setting, false); display.addView(reload); display.addView(ui.text(R.string.reload_help, 18));
         display.addView(ui.button(R.string.pin_change, v -> showPin(true), false));
         display.addView(ui.button(R.string.kiosk_settings, v -> showKioskSettings(), false));
+        display.addView(ui.button(R.string.update_settings, v -> showUpdateSettings(), false));
         Button saveSettings = ui.button(R.string.save, v -> {
             if (!authenticated) return;
             if (!Rooms.valid(selectedRoom)) { Toast.makeText(this, R.string.choose_room, Toast.LENGTH_LONG).show(); return; }
@@ -253,6 +254,49 @@ public final class AdminActivity extends Activity {
         }, true);
         save.setEnabled(ready); root.addView(save);
         root.addView(ui.button(R.string.back, v -> showSettings(), false));
+    }
+    private void showUpdateSettings() {
+        if (!authenticated) { showPin(false); return; }
+        resetIdleLock();
+        LinearLayout root = screen(true); root.addView(ui.title(R.string.update_settings));
+        boolean configured = !UpdateManager.manifestUrl().isEmpty();
+        root.addView(ui.text(getString(R.string.update_current, BuildConfig.VERSION_NAME), 20));
+        root.addView(ui.text(configured ? updateStatus() : getString(R.string.update_unconfigured), 20));
+        root.addView(ui.text(R.string.update_help, 18));
+        Button check = ui.button(R.string.update_check, null, false);
+        check.setOnClickListener(v -> {
+            check.setEnabled(false); check.setText(R.string.working); final int requestEpoch = epoch;
+            UpdateManager.checkNow(this, () -> runOnUiThread(() -> { if (!isDestroyed() && authenticated && requestEpoch == epoch) showUpdateSettings(); }));
+        });
+        check.setEnabled(configured); check.setAlpha(configured ? 1f : .4f); root.addView(check);
+        int ready = UpdateManager.readyVersion(this);
+        Button install = ui.button(R.string.update_install, v -> ui.dialog(ui.dialogBuilder(R.string.update_install)
+            .setMessage(R.string.update_install_message).setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.confirm, (d, w) -> { if (authenticated) { UpdateManager.installNow(this); Toast.makeText(this, R.string.update_installing, Toast.LENGTH_LONG).show(); } })), true);
+        install.setEnabled(ready > 0); install.setAlpha(ready > 0 ? 1f : .4f); root.addView(install);
+        // Without device-owner enrollment Android asks once to allow installs from this app.
+        if (!KioskController.isOwner(this) && !getPackageManager().canRequestPackageInstalls())
+            root.addView(ui.button(R.string.update_allow, v -> {
+                try { startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + getPackageName()))); }
+                catch (ActivityNotFoundException e) { Toast.makeText(this, R.string.kiosk_settings_missing, Toast.LENGTH_LONG).show(); }
+            }, false));
+        root.addView(ui.button(R.string.back, v -> showSettings(), false));
+    }
+    private String updateStatus() {
+        android.content.SharedPreferences p = UpdateManager.prefs(this);
+        long checked = p.getLong("checked_at", 0);
+        String when = checked == 0 ? getString(R.string.update_never) : android.text.format.DateFormat.format("MM-dd HH:mm", checked).toString();
+        String name = p.getString("available_name", "");
+        int text = switch (p.getString("status", "")) {
+            case "current", "installed" -> R.string.update_status_current;
+            case "ready" -> R.string.update_status_ready;
+            case "needs_confirmation" -> R.string.update_status_confirm;
+            case "installing", "confirming" -> R.string.update_status_installing;
+            case "rejected" -> R.string.update_status_rejected;
+            case "error" -> R.string.update_status_error;
+            default -> R.string.update_status_unknown;
+        };
+        return getString(text, name) + "\n" + getString(R.string.update_checked_at, when);
     }
     private boolean saveKiosk(boolean locked, boolean awake) {
         if (!authenticated) return false;

@@ -68,7 +68,7 @@ public abstract class MainActivity extends Activity {
     private LinearLayout maintenancePanel;
     // 0: idle, 1: delete original cart rows, 2: verify a fresh GET, 3: reopen QR.
     private int maintenancePhase, maintenanceLoadEpoch;
-    private long maintenanceStarted, maintenanceQueryId, maintenanceProbeStarted;
+    private long maintenanceStarted, maintenanceQueryId, maintenanceProbeStarted, updateIdleAt;
     private boolean maintenanceProbe, maintenanceFailed, maintenanceAwaitingLoad, swallowTouch;
     private String maintenanceCartUrl, lastOrderUrl;
     private static final String CLEANABLE_PATH = ".*/(menu(/[^/]+)?|cart|order/(history|complete))/?";
@@ -83,6 +83,8 @@ public abstract class MainActivity extends Activity {
     private final Runnable uiPoll = () -> pollUiState();
     private String sessionScript = "";
     private SessionRecovery sessionRecovery;
+    private final PageRecovery unavailableRecovery = new PageRecovery(), networkRecovery = new PageRecovery();
+    private String failedUrl;
     private SharedPreferences recoveryStore;
     private boolean discardEndedHistory;
     private boolean inspectHttpEnd;
@@ -99,7 +101,7 @@ public abstract class MainActivity extends Activity {
     };
     private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
         @Override public void onCapabilitiesChanged(Network network, NetworkCapabilities capabilities) {
-            if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) reconnectHandler.post(() -> scheduleStartupRetry());
+            if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) reconnectHandler.post(() -> { scheduleStartupRetry(); retryNetworkFailure(true); });
         }
     };
 
@@ -129,8 +131,10 @@ public abstract class MainActivity extends Activity {
             for (String title : getResources().getStringArray(R.array.session_ended_titles)) titles.put(title);
             JSONArray expiredTitles = new JSONArray();
             for (String title : getResources().getStringArray(R.array.session_expired_titles)) expiredTitles.put(title);
+            JSONArray unavailableTitles = new JSONArray();
+            for (String title : getResources().getStringArray(R.array.page_unavailable_titles)) unavailableTitles.put(title);
             sessionScript = new String(input.readAllBytes(), StandardCharsets.UTF_8).replace("__ROOM_TERMINAL_TITLES__", titles.toString())
-                .replace("__ROOM_EXPIRED_TITLES__", expiredTitles.toString());
+                .replace("__ROOM_EXPIRED_TITLES__", expiredTitles.toString()).replace("__ROOM_UNAVAILABLE_TITLES__", unavailableTitles.toString());
         } catch (IOException e) { /* Manual menu navigation remains available. */ }
         recoveryStore = getSharedPreferences("session_recovery_" + roomNumber(), MODE_PRIVATE);
         sessionRecovery = new SessionRecovery(recoveryStore.getInt("attempts", 0), recoveryStore.getLong("next_allowed", 0));
@@ -227,7 +231,7 @@ public abstract class MainActivity extends Activity {
             }
             @Override public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
                 if (view != web) return;
-                pageEpoch++; sessionRecovery.pause();
+                pageEpoch++; sessionRecovery.pause(); unavailableRecovery.pause();
                 setTransition(true, "loading");
                 inspectHttpEnd = false;
                 failed = false; networkFailure = false; errorPanel.setVisibility(View.GONE); status.setText(R.string.loading); progress.setVisibility(View.VISIBLE);
@@ -253,6 +257,7 @@ public abstract class MainActivity extends Activity {
                     showError(getString(R.string.network_error));
                     int code = error.getErrorCode();
                     networkFailure = "GET".equals(request.getMethod()) && (code == ERROR_HOST_LOOKUP || code == ERROR_CONNECT || code == ERROR_TIMEOUT);
+                    failedUrl = request.getUrl().toString();
                     scheduleStartupRetry();
                 }
             }
@@ -396,8 +401,9 @@ public abstract class MainActivity extends Activity {
         if (!visible || web == null || isDestroyed()) return;
         if (maintenancePhase != 0) { sessionRecovery.pause(); scheduleSessionCheck(); return; }
         Uri uri = Uri.parse(web.getUrl() == null ? "" : web.getUrl());
+        if (failed && networkFailure && !inspectHttpEnd) retryNetworkFailure(false);
         if ((failed && !inspectHttpEnd) || !getWindow().getDecorView().hasWindowFocus() || sessionScript.isEmpty() || !"https".equals(uri.getScheme()) || !"toss-order.tossplace.com".equals(uri.getHost())) {
-            sessionRecovery.pause(); scheduleSessionCheck(); return;
+            sessionRecovery.pause(); unavailableRecovery.pause(); scheduleSessionCheck(); return;
         }
         final int epoch = pageEpoch;
         web.evaluateJavascript(sessionScript, value -> {
@@ -412,12 +418,31 @@ public abstract class MainActivity extends Activity {
                 if (oldAttempts != sessionRecovery.attempts() || oldNext != sessionRecovery.nextAllowed())
                     recoveryStore.edit().putInt("attempts", sessionRecovery.attempts()).putLong("next_allowed", sessionRecovery.nextAllowed()).apply();
                 if (ready && discardEndedHistory) { web.clearHistory(); discardEndedHistory = false; }
+                boolean unavailable = state.optBoolean("unavailable");
+                long tick = SystemClock.elapsedRealtime();
+                int retry = unavailableRecovery.update(unavailable, ready, tick);
+                networkRecovery.update(false, ready, tick);
                 if (ended) status.setText(action == SessionRecovery.EXHAUSTED ? R.string.session_return_paused : R.string.session_returning);
+                else if (unavailable) status.setText(R.string.page_retrying);
                 else if (!failed) showReadyStatus();
                 if (action == SessionRecovery.RETURN) reopenRoom();
+                else if (retry == PageRecovery.RELOAD) web.reload();
+                else if (retry == PageRecovery.REOPEN) reopenRoom();
             } catch (JSONException e) { sessionRecovery.pause(); }
             scheduleSessionCheck();
         });
+    }
+    /** The error panel after a dropped connection otherwise waits for a touch. Retry the same GET page
+        slowly, or as soon as Android reports the network back; checkout and payment pages stay manual. */
+    private void retryNetworkFailure(boolean networkBack) {
+        if (!failed || !networkFailure || inspectHttpEnd || retryScheduled || web == null || maintenancePhase != 0 || !retryablePage(failedUrl)) return;
+        long now = SystemClock.elapsedRealtime();
+        if (networkBack ? networkRecovery.retryNow(now) : networkRecovery.update(true, false, now) != PageRecovery.NONE) web.loadUrl(failedUrl);
+    }
+    private boolean retryablePage(String url) {
+        if (url == null) return false;
+        String path = Uri.parse(url).getPath();
+        return url.equals(Rooms.url(this, roomNumber())) || (trustedPage(url) && path != null && (path.matches(CLEANABLE_PATH) || path.matches("/table/[^/]+/?")));
     }
     private void scheduleSessionCheck() {
         reconnectHandler.removeCallbacks(sessionCheck);
@@ -589,6 +614,11 @@ public abstract class MainActivity extends Activity {
     /** Resting means cleanup verified an empty cart and nobody touched since, so reopening the room QR on the
         idle menu loses nothing and keeps Toss's table session from lapsing before the next visitor. */
     private void keepSessionAlive(long now) {
+        if (now - updateIdleAt >= 60_000) {
+            updateIdleAt = now;
+            try { getContentResolver().call(Uri.parse("content://" + getPackageName() + ".runtime"), "update_idle", null, null); }
+            catch (RuntimeException e) { /* Updates wait for the next idle report. */ }
+        }
         if (maintenanceProbe) {
             if (now - maintenanceProbeStarted > 5000) { maintenanceQueryId++; maintenanceProbe = false; }
             return;
@@ -652,7 +682,7 @@ public abstract class MainActivity extends Activity {
     @Override protected void onPause() {
         if (maintenancePhase != 0) finishMaintenance(false);
         maintenanceQueryId++; maintenanceProbe = false; reconnectHandler.removeCallbacks(maintenanceCheck);
-        visible = false; pageEpoch++; sessionRecovery.pause(); reconnectHandler.removeCallbacks(sessionCheck);
+        visible = false; pageEpoch++; sessionRecovery.pause(); unavailableRecovery.pause(); reconnectHandler.removeCallbacks(sessionCheck);
         if (web != null) { web.onPause(); CookieManager.getInstance().flush(); } super.onPause();
     }
     @Override protected void onResume() {

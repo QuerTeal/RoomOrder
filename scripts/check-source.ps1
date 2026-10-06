@@ -10,6 +10,14 @@ if ($LASTEXITCODE -ne 0) { throw 'PIN tests failed' }
 if ($LASTEXITCODE -ne 0) { throw 'Session recovery test compilation failed' }
 & java -cp build\checks kr.dogdive.roomorder.SessionRecoveryTest
 if ($LASTEXITCODE -ne 0) { throw 'Session recovery tests failed' }
+& javac -encoding UTF-8 -d build\checks app\src\main\java\kr\dogdive\roomorder\PageRecovery.java scripts\tests\PageRecoveryTest.java
+if ($LASTEXITCODE -ne 0) { throw 'Page recovery test compilation failed' }
+& java -cp build\checks kr.dogdive.roomorder.PageRecoveryTest
+if ($LASTEXITCODE -ne 0) { throw 'Page recovery tests failed' }
+& javac -encoding UTF-8 -d build\checks app\src\main\java\kr\dogdive\roomorder\UpdatePolicy.java scripts\tests\UpdatePolicyTest.java
+if ($LASTEXITCODE -ne 0) { throw 'Update policy test compilation failed' }
+& java -cp build\checks kr.dogdive.roomorder.UpdatePolicyTest
+if ($LASTEXITCODE -ne 0) { throw 'Update policy tests failed' }
 & javac -encoding UTF-8 -d build\checks app\src\main\java\kr\dogdive\roomorder\CrashRecovery.java scripts\tests\CrashRecoveryTest.java
 if ($LASTEXITCODE -ne 0) { throw 'Crash recovery test compilation failed' }
 & java -cp build\checks kr.dogdive.roomorder.CrashRecoveryTest

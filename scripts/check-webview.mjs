@@ -15,7 +15,8 @@ try {
   const titles=name=>[...resources.match(new RegExp(`<string-array name="${name}">([\\s\\S]*?)<\\/string-array>`))[1].matchAll(/<item>(.*?)<\/item>/g)].map(m=>m[1]);
   const script=fs.readFileSync('app/src/main/assets/session-state.js','utf8')
     .replace('__ROOM_TERMINAL_TITLES__',JSON.stringify(titles('session_ended_titles')))
-    .replace('__ROOM_EXPIRED_TITLES__',JSON.stringify(titles('session_expired_titles')));
+    .replace('__ROOM_EXPIRED_TITLES__',JSON.stringify(titles('session_expired_titles')))
+    .replace('__ROOM_UNAVAILABLE_TITLES__',JSON.stringify(titles('page_unavailable_titles')));
   const cases=fs.readFileSync('scripts/tests/session-dom-cases.js','utf8');
   const r=await call('Runtime.evaluate',{expression:`${cases}\ncheckSessionDom(${JSON.stringify(script)})`,awaitPromise:true,returnByValue:true});
   assert.ok(!r.exceptionDetails,JSON.stringify(r.exceptionDetails));

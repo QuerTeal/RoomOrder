@@ -20,7 +20,16 @@ async function checkSessionDom(script) {
     {name:'role dialog blocks navigation',html:'<h1>안녕히 가세요</h1><div role="dialog">confirm</div>',ended:false},
     {name:'other host ignored',host:'example.org',html:'<h1>안녕히 가세요</h1>',ended:false},
     {name:'http ignored',protocol:'http:',html:'<h1>안녕히 가세요</h1>',ended:false},
-    {name:'generic connection error remains',html:'<h1>지금은 이용할 수 없어요</h1>',ended:false},
+    {name:'generic connection error is not a session end',html:'<h1>지금은 이용할 수 없어요</h1>',ended:false,unavailable:true},
+    {name:'Toss error screen on detail is reloadable',path:'/table/store/menu/123',html:'<span class="tds-mobile-paragraph__text">지금은 이용할 수 없어요</span><p>문제를 해결하고 있어요</p>',ended:false,unavailable:true},
+    {name:'Toss error screen on cart is reloadable',path:'/table/store/cart',html:'<p>지금은 이용할 수 없어요!</p>',ended:false,unavailable:true},
+    {name:'translated error title is reloadable',html:'<h1>Temporarily unavailable</h1>',errorTitle:'Temporarily unavailable',ended:false,unavailable:true},
+    {name:'error screen in checkout stays manual',path:'/table/store/checkout',html:'<h1>지금은 이용할 수 없어요</h1>',ended:false,unavailable:false},
+    {name:'error text with controls is not stuck',html:'<h1>지금은 이용할 수 없어요</h1><button>다시 시도</button>',ended:false,unavailable:false},
+    {name:'error text inside a menu is ignored',html:'<main><div role="tablist">menu</div><p>지금은 이용할 수 없어요</p></main>',ended:false,unavailable:false,ready:true},
+    {name:'hidden error title ignored',html:'<h1 style="display:none">지금은 이용할 수 없어요</h1>',ended:false,unavailable:false},
+    {name:'error screen behind a dialog waits',html:'<h1>지금은 이용할 수 없어요</h1><div role="dialog">confirm</div>',ended:false,unavailable:false},
+    {name:'error screen during an order request waits',busy:true,cover:true,allowed:false,html:'<h1>지금은 이용할 수 없어요</h1>',ended:false,unavailable:false},
     {name:'blank page is not a menu',html:'',ended:false,ready:false},
     {name:'QR expired page without cookie',html:'<span class="tds-mobile-paragraph__text">QR을 다시 인식해주세요</span><p>접속 가능한 시간이 지났어요</p>',ended:true},
     {name:'QR expired auth error page',path:'/table/404',cookie:'error-code=TABLE_SESSION_AUTHENTICATION_FAILED',html:'<h1>QR을 다시 인식해 주세요!</h1><button>다시 접속</button>',ended:true},
@@ -45,12 +54,12 @@ async function checkSessionDom(script) {
       doc.body.innerHTML = c.html;
       if(c.cover)doc.documentElement.setAttribute('data-room-busy','');else doc.documentElement.removeAttribute('data-room-busy');
       const data = doc.createElement('script'); data.id='__NEXT_DATA__'; data.type='application/json';
-      data.textContent=JSON.stringify({props:{pageProps:{_nextI18Next:{initialI18nStore:{en:{common:{'checkout-complete-page':{title:c.title||'See you again!'}}}}}}}});doc.body.append(data);
+      data.textContent=JSON.stringify({props:{pageProps:{_nextI18Next:{initialI18nStore:{en:{common:{'checkout-complete-page':{title:c.title||'See you again!'},error:{unexpected:{title:c.errorTitle||'Something went wrong'}}}}}}}}});doc.body.append(data);
       const location = {protocol:c.protocol||'https:',hostname:c.host||'toss-order.tossplace.com',pathname:c.path||'/table/store/menu',href:'https://toss-order.tossplace.com/table/store/menu?tid=fixture'};
       const documentView = new Proxy(doc,{get(target,key){if(key==='cookie')return c.cookie||'';const v=Reflect.get(target,key,target);return typeof v==='function'?v.bind(target):v;}});
       const windowView={__roomInteraction:{state:()=>({busy:!!c.busy,cover:!!c.cover,sessionRecoveryAllowed:c.allowed??!c.busy})}};
       const actual=inspect(documentView,location,frame.contentWindow.getComputedStyle.bind(frame.contentWindow),windowView);
-      if(actual.ended!==c.ended || (c.ready!==undefined&&actual.ready!==c.ready))throw Error(c.name+': '+JSON.stringify(actual));
+      if(actual.ended!==c.ended || (c.ready!==undefined&&actual.ready!==c.ready) || actual.unavailable!==!!c.unavailable)throw Error(c.name+': '+JSON.stringify(actual));
     }
     return cases.map(c=>({name:c.name,pass:true}));
   } finally { frame.remove(); }

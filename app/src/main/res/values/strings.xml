@@ -31,6 +31,28 @@
     <string-array name="session_expired_titles">
         <item>QR을 다시 인식해주세요</item>
     </string-array>
+    <string-array name="page_unavailable_titles">
+        <item>지금은 이용할 수 없어요</item>
+    </string-array>
+    <string name="page_retrying">연결 문제로 화면을 다시 불러옵니다</string>
+    <string name="update_settings">앱 업데이트</string>
+    <string name="update_current">현재 버전: %1$s</string>
+    <string name="update_unconfigured">업데이트 주소가 설정되지 않은 빌드입니다. 자동 업데이트를 사용하지 않습니다.</string>
+    <string name="update_help">새 버전은 새벽 3~5시에 확인하고, 자동 정리 후 쉬는 중일 때만 설치합니다. 설치하는 동안 10~20초 주문 화면이 닫혔다가 다시 열립니다. Android가 설치 확인을 요구하면 손님 화면에 띄우지 않고 이곳에서 설치할 때까지 기다립니다.</string>
+    <string name="update_check">지금 확인</string>
+    <string name="update_install">지금 설치</string>
+    <string name="update_install_message">주문 화면이 10~20초 닫혔다가 다시 열립니다. 손님이 사용하지 않을 때 설치하세요.</string>
+    <string name="update_installing">업데이트를 설치하고 있어요</string>
+    <string name="update_allow">이 앱의 설치 허용 설정 열기</string>
+    <string name="update_never">확인 안 함</string>
+    <string name="update_checked_at">마지막 확인: %1$s</string>
+    <string name="update_status_current">최신 버전을 사용하고 있어요</string>
+    <string name="update_status_ready">새 버전 %1$s 준비됨. 새벽에 쉬는 중이면 자동으로 설치합니다</string>
+    <string name="update_status_confirm">새 버전 %1$s: 설치 확인이 필요해요. 지금 설치를 눌러 주세요</string>
+    <string name="update_status_installing">업데이트를 설치하고 있어요</string>
+    <string name="update_status_rejected">받은 파일을 확인할 수 없어 설치하지 않았어요</string>
+    <string name="update_status_error">업데이트를 확인하지 못했어요. 네트워크를 확인해 주세요</string>
+    <string name="update_status_unknown">아직 업데이트를 확인하지 않았어요</string>
     <string name="app_name">테이블 주문</string>
     <string name="dark_mode">다크모드</string>
     <string name="dark_mode_help">어두운 배경으로 표시합니다. 저장하면 현재 주문 화면에 적용됩니다.</string>

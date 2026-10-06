@@ -1,6 +1,6 @@
 /* Read-only main-frame inspection. Never submit, click, clear storage or replay requests. */
-((fallbackTitles, expiredTitles) => {
-  const result = {href:location.href, ended:false, ready:false};
+((fallbackTitles, expiredTitles, unavailableTitles) => {
+  const result = {href:location.href, ended:false, ready:false, unavailable:false};
   if (location.protocol !== 'https:' || location.hostname !== 'toss-order.tossplace.com') return result;
   const interaction = window.__roomInteraction?.state();
   if (interaction?.busy && !interaction.sessionRecoveryAllowed) return result;
@@ -21,12 +21,16 @@
   const normalize = s => String(s).replace(/[\s!?！？。.]+/gu, '').toLocaleLowerCase();
   const titles = new Set(fallbackTitles.map(normalize));
   const qrTitles = new Set(expiredTitles.map(normalize));
+  const errorTitles = new Set(unavailableTitles.map(normalize));
   try {
     const data = JSON.parse(document.getElementById('__NEXT_DATA__')?.textContent || '{}');
     const locales = data.props?.pageProps?._nextI18Next?.initialI18nStore || {};
     for (const locale of Object.values(locales)) {
       const title = locale.common?.['checkout-complete-page']?.title;
       if (typeof title === 'string' && title.trim()) titles.add(normalize(title));
+      // Toss's catch-all error screen after a failed request; it never retries by itself.
+      const error = locale.common?.error?.unexpected?.title;
+      if (typeof error === 'string' && error.trim()) errorTitles.add(normalize(error));
     }
   } catch (_) { /* Legacy page can still use the resource-backed terminal titles. */ }
   const candidates = Array.from(document.querySelectorAll('h1,h2,h3,p,span,[role="heading"],.tds-mobile-paragraph__text')).filter(visible);
@@ -38,5 +42,8 @@
   const checkoutComplete = /\/checkout\/complete\/?$/.test(location.pathname);
   const controls = anyVisible('button,a[href],[role="button"],input,select,textarea');
   result.ended = (qrTitle && (qrExpired || !controls)) || (terminalTitle && (expired || checkoutComplete || !controls));
+  // Reload only where the visitor was browsing; checkout and payment pages are left to the visitor.
+  result.unavailable = !result.ended && !controls && candidates.some(e => errorTitles.has(normalize(e.textContent)))
+    && /\/(menu(\/[^/]+)?|cart|order\/(history|complete))\/?$/.test(location.pathname);
   return result;
-})(__ROOM_TERMINAL_TITLES__, __ROOM_EXPIRED_TITLES__)
+})(__ROOM_TERMINAL_TITLES__, __ROOM_EXPIRED_TITLES__, __ROOM_UNAVAILABLE_TITLES__)

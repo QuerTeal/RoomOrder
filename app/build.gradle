@@ -11,9 +11,11 @@ android {
         applicationId 'kr.dogdive.roomorder'
         minSdk 33
         targetSdk 33
-        versionCode 18
-        versionName '2.6.1'
+        versionCode 19
+        versionName '2.7.0'
         testInstrumentationRunner 'kr.dogdive.roomorder.DarkModeCheck'
+        // GitHub "owner/repository" whose latest release carries update.json; empty disables automatic updates.
+        buildConfigField 'String', 'UPDATE_REPO', "\"${providers.gradleProperty('roomorder.updateRepo').getOrElse('')}\""
     }
     buildFeatures { buildConfig true; resValues true }
     signingConfigs {

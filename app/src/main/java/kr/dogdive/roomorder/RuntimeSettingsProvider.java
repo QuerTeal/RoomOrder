@@ -10,6 +10,8 @@ import android.os.Bundle;
 public final class RuntimeSettingsProvider extends ContentProvider {
     @Override public boolean onCreate() { return true; }
     @Override public Bundle call(String method, String arg, Bundle extras) {
+        // The resting room reports idleness; updates run here, in the process that owns settings and installs.
+        if ("update_idle".equals(method)) { UpdateManager.idle(requireContext()); return Bundle.EMPTY; }
         if (!"kiosk".equals(method)) throw new IllegalArgumentException("Unknown method");
         SettingsStore settings = new SettingsStore(requireContext());
         Bundle result = new Bundle();

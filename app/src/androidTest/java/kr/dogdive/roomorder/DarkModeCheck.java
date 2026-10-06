@@ -34,6 +34,23 @@ public final class DarkModeCheck extends Instrumentation {
             return "SAVED: " + file;
         } finally { runOnMainSync(admin::finish); waitForIdleSync(); }
     }
+    /** Screenshot of one unlocked settings screen, saved in the app's external files. */
+    private String previewScreen(String method, String name) throws Exception {
+        AdminActivity admin = (AdminActivity)startActivitySync(new Intent(getTargetContext(), AdminActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
+            runOnMainSync(() -> {
+                try {
+                    Field auth = AdminActivity.class.getDeclaredField("authenticated"); auth.setAccessible(true); auth.setBoolean(admin, true);
+                    Method show = AdminActivity.class.getDeclaredMethod(method); show.setAccessible(true); show.invoke(admin);
+                } catch (ReflectiveOperationException e) { throw new AssertionError(e); }
+                admin.getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            });
+            waitForIdleSync(); Thread.sleep(500);
+            java.io.File file = new java.io.File(getTargetContext().getExternalFilesDir(null), name);
+            try (var out = new java.io.FileOutputStream(file)) { getUiAutomation().takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out); }
+            return "SAVED: " + file;
+        } finally { runOnMainSync(admin::finish); waitForIdleSync(); }
+    }
     @Override public void onStart() {
         Bundle result = new Bundle();
         SettingsStore settings = new SettingsStore(getTargetContext());
@@ -49,6 +66,12 @@ public final class DarkModeCheck extends Instrumentation {
                 result.putString("stream", MotionSettingsAudit.run(this, settings) + "\n"); finish(Activity.RESULT_OK, result); return;
             } else if ("previewMotion".equals(arguments.getString("action"))) {
                 result.putString("stream", previewMotion() + "\n"); finish(Activity.RESULT_OK, result); return;
+            } else if ("updateAudit".equals(arguments.getString("action"))) {
+                result.putString("stream", UpdateAudit.run(this, Integer.parseInt(arguments.getString("code"))) + "\n"); finish(Activity.RESULT_OK, result); return;
+            } else if ("updateCleanup".equals(arguments.getString("action"))) {
+                result.putString("stream", UpdateAudit.cleanup(this) + "\n"); finish(Activity.RESULT_OK, result); return;
+            } else if ("previewUpdate".equals(arguments.getString("action"))) {
+                result.putString("stream", previewScreen("showUpdateSettings", "admin-update.png") + "\n"); finish(Activity.RESULT_OK, result); return;
             } else if ("set".equals(arguments.getString("action"))) {
                 boolean dark = Boolean.parseBoolean(arguments.getString("dark"));
                 int nextZoom = Integer.parseInt(arguments.getString("zoom", Integer.toString(zoom)));
@@ -56,7 +79,8 @@ public final class DarkModeCheck extends Instrumentation {
                 boolean animNumber = Boolean.parseBoolean(arguments.getString("animNumber", Boolean.toString(settings.animNumber())));
                 boolean animComplete = Boolean.parseBoolean(arguments.getString("animComplete", Boolean.toString(settings.animComplete())));
                 int animBounce = Integer.parseInt(arguments.getString("animBounce", Integer.toString(settings.animBounce())));
-                check(settings.save(room, wide, nextZoom, dark, idleSeconds, animNumber, animComplete, animBounce), "Save failed");
+                int nextRoom = Integer.parseInt(arguments.getString("room", Integer.toString(room)));
+                check(settings.save(nextRoom, wide, nextZoom, dark, idleSeconds, animNumber, animComplete, animBounce), "Save failed");
                 check(KioskController.runtime(getTargetContext()).getBoolean(SettingsStore.DARK) == dark, "IPC mismatch");
             } else {
                 for (boolean dark : new boolean[]{true, false}) {
