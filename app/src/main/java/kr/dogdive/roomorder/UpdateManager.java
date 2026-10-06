@@ -40,10 +40,21 @@ final class UpdateManager {
         try { return (int)c.getPackageManager().getPackageInfo(c.getPackageName(), 0).getLongVersionCode(); }
         catch (PackageManager.NameNotFoundException e) { return 0; }
     }
+    /** Some devices drop the install-result and package-replaced broadcasts after replacing this app,
+        so the installed version decides whether a downloaded update is done. Removes the spent APK. */
+    static void refresh(Context c) {
+        SharedPreferences p = prefs(c);
+        int code = p.getInt("verified_code", 0);
+        if (code == 0 || code > installedVersion(c)) return;
+        File[] files = apkFile(c, 0).getParentFile().listFiles();
+        if (files != null) for (File file : files) file.delete();
+        p.edit().remove("verified_code").remove("verified_sha").putBoolean("needs_confirmation", false).putString("status", "installed").apply();
+    }
     /** The resting room reports about once a minute; only the 03:00-05:00 window does any work. */
     static void idle(Context context) {
         Context c = context.getApplicationContext();
         worker.execute(() -> {
+            refresh(c);
             int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
             if (!UpdatePolicy.inWindow(hour) || manifestUrl().isEmpty()) return;
             SharedPreferences p = prefs(c);
@@ -51,7 +62,7 @@ final class UpdateManager {
             if (UpdatePolicy.installNow(true, hour, readyVersion(c) > 0, p.getBoolean("needs_confirmation", false))) install(c, false);
         });
     }
-    static void checkNow(Context context, Runnable done) { Context c = context.getApplicationContext(); worker.execute(() -> { check(c); done.run(); }); }
+    static void checkNow(Context context, Runnable done) { Context c = context.getApplicationContext(); worker.execute(() -> { refresh(c); check(c); done.run(); }); }
     /** Administrator request: Android may show its own confirmation, which the administrator answers. */
     static void installNow(Context context) { Context c = context.getApplicationContext(); worker.execute(() -> install(c, true)); }
     /** Version of a downloaded, verified APK newer than the installed one, or 0. */
@@ -101,8 +112,8 @@ final class UpdateManager {
                     in.transferTo(out); session.fsync(out);
                 }
                 p.edit().putBoolean("interactive", interactive).putString("status", "installing").commit();
-                Intent result = new Intent(c, UpdateReceiver.class).setAction(UpdateReceiver.RESULT);
-                session.commit(PendingIntent.getBroadcast(c, id, result, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE).getIntentSender());
+                Intent result = new Intent(c, UpdateResultActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                session.commit(PendingIntent.getActivity(c, id, result, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE).getIntentSender());
             }
         } catch (IOException | NoSuchAlgorithmException | RuntimeException error) {
             p.edit().putString("status", "error").putString("error", error.getClass().getSimpleName()).apply();

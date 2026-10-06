@@ -259,6 +259,7 @@ public final class AdminActivity extends Activity {
         if (!authenticated) { showPin(false); return; }
         resetIdleLock();
         LinearLayout root = screen(true); root.addView(ui.title(R.string.update_settings));
+        UpdateManager.refresh(this);
         boolean configured = !UpdateManager.manifestUrl().isEmpty();
         root.addView(ui.text(getString(R.string.update_current, BuildConfig.VERSION_NAME), 20));
         root.addView(ui.text(configured ? updateStatus() : getString(R.string.update_unconfigured), 20));
@@ -288,7 +289,8 @@ public final class AdminActivity extends Activity {
         String when = checked == 0 ? getString(R.string.update_never) : android.text.format.DateFormat.format("MM-dd HH:mm", checked).toString();
         String name = p.getString("available_name", "");
         int text = switch (p.getString("status", "")) {
-            case "current", "installed" -> R.string.update_status_current;
+            case "current" -> R.string.update_status_current;
+            case "installed" -> R.string.update_status_installed;
             case "ready" -> R.string.update_status_ready;
             case "needs_confirmation" -> R.string.update_status_confirm;
             case "installing", "confirming" -> R.string.update_status_installing;
