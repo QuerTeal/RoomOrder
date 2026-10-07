@@ -1,6 +1,14 @@
-# 통합 앱 검증 결과 — 2.7.7
+# 통합 앱 검증 결과 — 2.7.8
 
-검증일: 2026-10-08 / versionCode 26 / 패키지 `kr.dogdive.roomorder.tablet`
+검증일: 2026-10-08 / versionCode 27 / 패키지 `kr.dogdive.roomorder.tablet`
+
+## 2.7.8 업데이트 저장소 변경 실물 시험
+
+- 소스 저장소를 공개 [QuerTeal/RoomOrder](https://github.com/QuerTeal/RoomOrder)로 새로 만들고(이전 비공개 저장소는 `RoomOrder-old`), 2.7.0~2.7.7 릴리스를 같은 APK(SHA-256 동일)로 옮겼습니다. 2.7.8 빌드의 `BuildConfig.UPDATE_REPO`는 `QuerTeal/RoomOrder`입니다.
+- `publish-update.ps1 -PreviousRepo QuerTeal/RoomOrder-releases`로 2.7.8을 두 저장소에 최신 릴리스로 올렸습니다. 두 `update.json`은 SHA-256이 같고 각자 자기 저장소의 APK 주소를 가리킵니다.
+- 태블릿(2.7.7, 이전 저장소 확인)에서 관리자 설정 → 앱 업데이트 → `지금 확인`: `새 버전 2.7.8 준비됨`. `지금 설치` → 확인창 없이 설치(06:52:29)되고 5번방 주문 화면이 다시 열렸습니다.
+- 2.7.8에서 `지금 확인`: `최신 버전을 사용하고 있어요`(새 저장소의 `update.json` 확인).
+- `QuerTeal/RoomOrder-releases`는 모든 태블릿이 2.7.8 이상이 된 것을 확인한 뒤 삭제합니다. 삭제 뒤 2.7.7 이하 태블릿은 APK를 직접 설치해야 합니다.
 
 ## 2.7.7 새벽 무인 설치 실물 시험
 
