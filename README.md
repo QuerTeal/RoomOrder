@@ -2,7 +2,13 @@
 
 Android 13 가로 태블릿용 앱입니다. **같은 APK 하나**를 모든 태블릿에 설치하고, 관리자 설정에서 1·2·3·5·6·7·8·9번방 중 설치된 방을 선택합니다.
 
-현재 배포 버전은 **2.7.7 (versionCode 26)**입니다. 기존 통합 앱 위에 설치하면 PIN·방·키오스크·다크모드·미조작 시간·애니메이션 설정을 유지합니다.
+현재 배포 버전은 **2.7.8 (versionCode 27)**입니다. 기존 통합 앱 위에 설치하면 PIN·방·키오스크·다크모드·미조작 시간·애니메이션 설정을 유지합니다.
+
+## 2.7.8 업데이트 저장소 변경
+
+- 업데이트를 공개 소스 저장소 [QuerTeal/RoomOrder](https://github.com/QuerTeal/RoomOrder)의 Releases에서 받습니다. 배포 전용 저장소 `QuerTeal/RoomOrder-releases`는 모든 태블릿이 2.7.8 이상이 된 뒤 삭제합니다.
+- 2.7.0~2.7.7 태블릿은 이전 저장소에도 함께 올린 2.7.8을 평소처럼 새벽 3~5시(또는 관리자 설정 → 앱 업데이트 → 지금 설치)에 받아 설치하고, 그 뒤부터 새 저장소를 확인합니다.
+- 이전 저장소를 삭제한 뒤에는 2.7.8 미만 태블릿이 자동 업데이트를 받지 못하므로 APK를 직접 설치해야 합니다.
 
 ## 2.7.7 새벽 무인 설치 시험 배포
 
@@ -46,11 +52,11 @@ GitHub Releases에 올린 새 버전을 태블릿이 스스로 받아 설치합�
 
 배포하는 방법:
 
-1. 업데이트 파일은 배포 전용 공개 저장소 [QuerTeal/RoomOrder-releases](https://github.com/QuerTeal/RoomOrder-releases)에 올립니다(소스 코드는 비공개 저장소 QuerTeal/RoomOrder). `gradle.properties`의 `roomorder.updateRepo`에 설정되어 있으며, 이 값이 들어간 빌드부터 업데이트를 확인합니다. 2.7.0 배포 APK부터 이 저장소를 확인합니다.
-2. `app/build.gradle`의 versionCode를 올리고 `pwsh -File .scriptsuild.ps1`로 서명 APK를 만듭니다.
-3. GitHub CLI(`gh auth login`)를 준비한 뒤 `pwsh -File .scriptspublish-update.ps1`을 실행합니다. APK와 `update.json`(버전·SHA-256)을 최신 릴리스로 올립니다. `-DryRun`으로 `update.json`만 만들어 볼 수 있습니다.
+1. 업데이트 파일은 공개 저장소 [QuerTeal/RoomOrder](https://github.com/QuerTeal/RoomOrder)의 Releases에 올립니다. `gradle.properties`의 `roomorder.updateRepo`에 설정되어 있으며, 이 값이 들어간 빌드부터 그 저장소를 확인합니다. 2.7.0~2.7.7은 이전 배포 전용 저장소 `QuerTeal/RoomOrder-releases`를 확인합니다(2.7.8 참고).
+2. `app/build.gradle`의 versionCode를 올리고 `pwsh -File .\scripts\build.ps1`로 서명 APK를 만듭니다.
+3. GitHub CLI(`gh auth login`)를 준비한 뒤 `pwsh -File .\scripts\publish-update.ps1`을 실행합니다. APK와 `update.json`(버전·SHA-256)을 최신 릴리스로 올립니다. `-DryRun`으로 `update.json`만 만들어 볼 수 있습니다. `-PreviousRepo owner/name`을 주면 이전 저장소를 확인하는 태블릿이 옮겨 올 수 있도록 같은 APK를 그 저장소에도 최신 릴리스로 올립니다.
 
-공개 저장소에 올린 APK에는 방별 QR 주소가 들어 있습니다(테이블에 붙는 QR과 같은 주소). 서명키·`signing.properties`는 절대 올리지 마세요.
+저장소와 Releases가 공개이므로 소스와 APK의 방별 QR 주소(테이블에 붙는 QR과 같은 주소)를 누구나 볼 수 있습니다. 서명키·`signing.properties`는 절대 올리지 마세요.
 
 ## 2.7.0 '지금은 이용할 수 없어요' 화면 자동 복구
 
