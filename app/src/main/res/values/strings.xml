@@ -43,6 +43,9 @@
     <string name="update_install">지금 설치</string>
     <string name="update_install_message">주문 화면이 10~20초 닫혔다가 다시 열립니다. 손님이 사용하지 않을 때 설치하세요.</string>
     <string name="update_installing">업데이트를 설치하고 있어요</string>
+    <string name="update_reopen_on">업데이트 뒤 주문 화면 자동으로 열기: 허용됨</string>
+    <string name="update_reopen_off">업데이트 뒤 주문 화면 자동으로 열기: 허용 필요. 아래 버튼에서 이 앱의 \'다른 앱 위에 표시\'를 허용해 주세요.</string>
+    <string name="update_reopen_allow">다른 앱 위에 표시 허용 열기</string>
     <string name="update_allow">이 앱의 설치 허용 설정 열기</string>
     <string name="update_never">확인 안 함</string>
     <string name="update_checked_at">마지막 확인: %1$s</string>

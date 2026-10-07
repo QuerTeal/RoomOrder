@@ -281,6 +281,14 @@ public final class AdminActivity extends Activity {
                 try { startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, android.net.Uri.parse("package:" + getPackageName()))); }
                 catch (ActivityNotFoundException e) { Toast.makeText(this, R.string.kiosk_settings_missing, Toast.LENGTH_LONG).show(); }
             }, false));
+        // Android 13 lets the updated app reopen the order screen from the background only with this permission
+        // (or device-owner enrollment); some tablets also drop the package-replaced broadcast.
+        boolean reopen = KioskController.isOwner(this) || Settings.canDrawOverlays(this);
+        root.addView(ui.text(reopen ? R.string.update_reopen_on : R.string.update_reopen_off, 18));
+        if (!reopen) root.addView(ui.button(R.string.update_reopen_allow, v -> {
+            try { startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + getPackageName()))); }
+            catch (ActivityNotFoundException e) { Toast.makeText(this, R.string.kiosk_settings_missing, Toast.LENGTH_LONG).show(); }
+        }, false));
         root.addView(ui.button(R.string.back, v -> showSettings(), false));
     }
     private String updateStatus() {
