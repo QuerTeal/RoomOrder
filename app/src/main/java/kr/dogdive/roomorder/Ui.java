@@ -12,7 +12,6 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.widget.Button;
@@ -20,9 +19,6 @@ import android.webkit.WebView;
 import android.widget.ProgressBar;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import java.util.Collections;
-import java.util.Set;
-import java.util.WeakHashMap;
 
 final class Ui {
     int ink, accent, muted, bg, surface, border, error;
@@ -115,34 +111,14 @@ final class Ui {
             if (window != null) {
                 int width = activity.getResources().getDisplayMetrics().widthPixels;
                 window.setLayout(Math.min(dp(720), width - dp(48)), -2);
-                hideBars(window);
+                WindowInsetsController controller = window.getInsetsController();
+                if (controller != null) { controller.hide(WindowInsets.Type.systemBars()); controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE); }
             }
         });
         dialog.show(); return dialog;
     }
-    void immersive() { hideBars(activity.getWindow()); }
-    private static final Set<Window> guarded = Collections.newSetFromMap(new WeakHashMap<>());
-    /** Android 13 always reveals the status and gesture bars for a few seconds on an edge swipe and tells the
-        app nothing, except that bar control passes to the system and back. Each time it does, asking for the
-        bars ends that reveal and hiding them in the same frame puts them away, so they show for about 0.2 s. */
-    static void hideBars(Window window) {
-        WindowInsetsController c = window.getInsetsController();
-        if (c == null) return;
-        c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-        c.hide(WindowInsets.Type.systemBars());
-        if (!guarded.add(window)) return;
-        long[] last = {0};
-        c.addOnControllableInsetsChangedListener((controller, types) -> {
-            if ((types & WindowInsets.Type.systemBars()) == 0) return;
-            // The keyboard keeps the navigation bar up, so hiding again only hands control back and forth and
-            // makes the status bar flicker. The reveal then ends on its own as before.
-            WindowInsets insets = window.getDecorView().getRootWindowInsets();
-            if (insets != null && insets.isVisible(WindowInsets.Type.ime())) return;
-            long now = android.os.SystemClock.uptimeMillis();
-            if (now - last[0] < 500) return;
-            last[0] = now;
-            controller.show(WindowInsets.Type.systemBars());
-            controller.hide(WindowInsets.Type.systemBars());
-        });
+    void immersive() {
+        WindowInsetsController c = activity.getWindow().getInsetsController();
+        if (c != null) { c.hide(WindowInsets.Type.systemBars()); c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE); }
     }
 }
