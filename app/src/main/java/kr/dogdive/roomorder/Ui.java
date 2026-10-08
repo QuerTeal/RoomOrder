@@ -124,15 +124,23 @@ final class Ui {
     private static final Set<Window> guarded = Collections.newSetFromMap(new WeakHashMap<>());
     /** Android 13 always reveals the status and gesture bars for a few seconds on an edge swipe and tells the
         app nothing, except that bar control passes to the system and back. Each time it does, asking for the
-        bars ends that reveal and hiding them in the same frame puts them away, so they show for about 0.15 s. */
+        bars ends that reveal and hiding them in the same frame puts them away, so they show for about 0.2 s. */
     static void hideBars(Window window) {
         WindowInsetsController c = window.getInsetsController();
         if (c == null) return;
         c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
         c.hide(WindowInsets.Type.systemBars());
         if (!guarded.add(window)) return;
+        long[] last = {0};
         c.addOnControllableInsetsChangedListener((controller, types) -> {
             if ((types & WindowInsets.Type.systemBars()) == 0) return;
+            // The keyboard keeps the navigation bar up, so hiding again only hands control back and forth and
+            // makes the status bar flicker. The reveal then ends on its own as before.
+            WindowInsets insets = window.getDecorView().getRootWindowInsets();
+            if (insets != null && insets.isVisible(WindowInsets.Type.ime())) return;
+            long now = android.os.SystemClock.uptimeMillis();
+            if (now - last[0] < 500) return;
+            last[0] = now;
             controller.show(WindowInsets.Type.systemBars());
             controller.hide(WindowInsets.Type.systemBars());
         });
