@@ -603,6 +603,8 @@ public abstract class MainActivity extends Activity {
                     }
                 } else if (phase == 2 && safe) {
                     if (BuildConfig.DEBUG) android.util.Log.i("RoomMaintenance", "verify cart=" + state.optBoolean("cart") + " empty=" + state.optBoolean("empty"));
+                    // A fresh cart page is blank until its request answers; the script bounds this wait.
+                    if (state.optBoolean("cart") && state.optInt("count") == 0 && !state.optBoolean("empty") && !state.optBoolean("unknown")) return;
                     if (!state.optBoolean("cart") || !state.optBoolean("empty")) { finishMaintenance(false); return; }
                     maintenancePhase = 3; maintenanceMessage.setText(R.string.idle_reloading); openForMaintenance(null);
                 } else if (phase == 3 && safe && state.optBoolean("menu")) {

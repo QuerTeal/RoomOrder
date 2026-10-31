@@ -1,14 +1,15 @@
 // Native seconds countdown + local cart fixture. All network writes are intercepted.
 // --start=menu|cart|external|checkout-external  where the visitor leaves the tablet
 // --delay-cart=ms                               slow cart documents (the previous page must not be probed)
+// --delay-render=ms                             cart contents drawn after the page is interactive, like the real page
 import fs from 'node:fs';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 const arg=(name,fallback)=>process.argv.find(v=>v.startsWith(`--${name}=`))?.split('=')[1]??fallback;
-const interval=Number(arg('seconds',100)),start=arg('start','menu'),cartDelay=Number(arg('delay-cart',0));
+const interval=Number(arg('seconds',100)),start=arg('start','menu'),cartDelay=Number(arg('delay-cart',0)),renderDelay=Number(arg('delay-render',0));
 assert.ok([60,80,100].includes(interval),'Use --seconds=60, 80 or 100');
 assert.ok(['menu','cart','external','checkout-external'].includes(start),'Unknown --start');
-const output=`captures/idle-v252/cycle-${interval}-${start}${cartDelay?'-slow':''}`;fs.mkdirSync(output,{recursive:true});
+const output=`captures/idle-v252/cycle-${interval}-${start}${cartDelay?'-slow':''}${renderDelay?'-late':''}`;fs.mkdirSync(output,{recursive:true});
 const adb=process.env.LOCALAPPDATA+'/Android/Sdk/platform-tools/adb.exe',serial='emulator-5554';
 const run=(...args)=>execFileSync(adb,['-s',serial,...args],{windowsHide:true,timeout:15000});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -35,7 +36,7 @@ const htmlHeaders=[{name:'Content-Type',value:'text/html; charset=utf-8'}];
 const fulfillHtml=(requestId,body)=>call('Fetch.fulfillRequest',{requestId,responseCode:200,responseHeaders:htmlHeaders,body:Buffer.from(body).toString('base64')}).catch(()=>{});
 function html(cart){
  const data={props:{pageProps:{_nextI18Next:{initialI18nStore:{ko:{common:{'cart-page':{'empty-cart':'담은 메뉴가 없어요'}}}}}}}};
- return `<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:24px sans-serif;margin:24px}li{padding:24px;border-bottom:1px solid #ccd}button{font:24px sans-serif;padding:20px}</style></head><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script><main>${cart?'':'<h1>자동 정리 검증 화면</h1><div role="tablist"><button role="tab">로컬 표시 테스트</button></div><p>실제 주문은 발생하지 않습니다.</p>'}</main>${cart?`<script>let items=${JSON.stringify(items)};function render(){const main=document.querySelector('main');main.innerHTML=items.length?'<article>'+items.map(id=>'<div><li class="tds-mobile-list-row"><span>검증 메뉴 '+id+'</span><span data-tds-mobile-component="ListRowRight"><button data-id="'+id+'">삭제</button></span></li></div>').join('')+'</article>':'<p>담은 메뉴가 없어요</p>';for(const b of main.querySelectorAll('button'))b.parentElement.onclick=async()=>{const id=Number(b.dataset.id),r=await fetch('https://api-public.tossplace.com/api-public/table-order/v1/merchants/codex-idle-test/cart/line-items/'+id,{method:'DELETE'});if(r.ok){items=items.filter(n=>n!==id);render();}};}render();</script>`:''}</body></html>`;
+ return `<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:24px sans-serif;margin:24px}li{padding:24px;border-bottom:1px solid #ccd}button{font:24px sans-serif;padding:20px}</style></head><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script><main>${cart?'':'<h1>자동 정리 검증 화면</h1><div role="tablist"><button role="tab">로컬 표시 테스트</button></div><p>실제 주문은 발생하지 않습니다.</p>'}</main>${cart?`<script>let items=${JSON.stringify(items)};function render(){const main=document.querySelector('main');main.innerHTML=items.length?'<article>'+items.map(id=>'<div><li class="tds-mobile-list-row"><span>검증 메뉴 '+id+'</span><span data-tds-mobile-component="ListRowRight"><button data-id="'+id+'">삭제</button></span></li></div>').join('')+'</article>':'<p>담은 메뉴가 없어요</p>';for(const b of main.querySelectorAll('button'))b.parentElement.onclick=async()=>{const id=Number(b.dataset.id),r=await fetch('https://api-public.tossplace.com/api-public/table-order/v1/merchants/codex-idle-test/cart/line-items/'+id,{method:'DELETE'});if(r.ok){items=items.filter(n=>n!==id);render();}};}setTimeout(render,${renderDelay});</script>`:''}</body></html>`;
 }
 ws.onmessage=e=>{const m=JSON.parse(e.data),p=pending.get(m.id);if(p){clearTimeout(p.timer);pending.delete(m.id);m.error?p.reject(Error(JSON.stringify(m.error))):p.resolve(m.result);}
  if(m.method==='Fetch.requestPaused'){

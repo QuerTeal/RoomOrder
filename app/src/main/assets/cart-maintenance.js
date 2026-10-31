@@ -2,7 +2,7 @@
    Never submit an order, clear cookies/storage, or retry a failed deletion. */
 (() => {
   if (window !== window.top || location.origin !== 'https://toss-order.tossplace.com' || window.__roomMaintenance) return;
-  let pending = null, failure = '', removed = 0;
+  let pending = null, failure = '', removed = 0, blankSince = 0;
   const visible = e => e && e.getClientRects().length && getComputedStyle(e).visibility !== 'hidden'
     && !e.closest('[hidden],[aria-hidden="true"]');
   const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
@@ -25,7 +25,12 @@
     const empty = !!emptyText && rows.length === 0 && !!main && [...main.querySelectorAll('p,span,h1,h2,[role="heading"]')]
       .some(e => visible(e) && normalize(e.textContent) === normalize(emptyText));
     const menu = /\/menu\/?$/.test(location.pathname) && !!main?.querySelector('[role="tablist"]');
-    return {href:location.href, safe, cart, menu, empty, count:rows.length, uncertain:!!uncertain, dialog,
+    // The page turns interactive before its cart request answers, so neither rows nor the empty
+    // text exist yet. Only a blank that outlasts any normal response is an unknown structure.
+    if (!cart || !safe || rows.length || empty) blankSince = 0;
+    else blankSince ||= performance.now();
+    const unknown = !!blankSince && performance.now() - blankSince > 20_000;
+    return {href:location.href, safe, cart, menu, empty, count:rows.length, unknown, uncertain:!!uncertain, dialog,
       failure, removed, rows};
   }
   function snapshot() { const {rows, ...value} = inspect(); return value; }
@@ -45,6 +50,7 @@
     }
     if (!state.safe) return result('waiting');
     if (state.empty) return result('empty');
+    if (!state.count && !state.unknown) return result('waiting');
     if (!state.count || removed >= 100) return fail('unrecognized_cart');
     const row = state.rows[0];
     const control = row.querySelector('[data-tds-mobile-component="ListRowRight"]');
