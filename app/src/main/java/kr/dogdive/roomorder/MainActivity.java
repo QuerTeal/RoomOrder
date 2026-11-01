@@ -67,7 +67,10 @@ public abstract class MainActivity extends Activity {
     private TextView idleCountdown, maintenanceMessage;
     private LinearLayout maintenancePanel;
     // 0: idle, 1: delete original cart rows, 2: verify a fresh GET, 3: reopen QR.
-    private int maintenancePhase, maintenanceLoadEpoch;
+    /** Cleanup stops for passing causes too; these bound the unattended cycles until the next touch. */
+    private static final int MAX_MAINTENANCE_RETRIES = 3;
+    private int maintenancePhase, maintenanceLoadEpoch, maintenanceRetries;
+    private String maintenanceReason = "";
     private long maintenanceStarted, maintenanceQueryId, maintenanceProbeStarted, updateIdleAt;
     private boolean maintenanceProbe, maintenanceFailed, maintenanceAwaitingLoad, swallowTouch;
     private String maintenanceCartUrl, lastOrderUrl;
@@ -485,7 +488,7 @@ public abstract class MainActivity extends Activity {
     }
     private void resetIdleRefresh() {
         if (idleRefresh == null || maintenancePhase != 0) return;
-        idleRefresh.touch(SystemClock.elapsedRealtime()); maintenanceFailed = false;
+        idleRefresh.touch(SystemClock.elapsedRealtime()); maintenanceFailed = false; maintenanceRetries = 0;
         maintenanceQueryId++; maintenanceProbe = false;
     }
     private void scheduleMaintenance() {
@@ -493,10 +496,12 @@ public abstract class MainActivity extends Activity {
         if (visible && web != null && !isDestroyed()) reconnectHandler.postDelayed(maintenanceCheck, 1000);
     }
     private void finishMaintenance(boolean success) {
-        if (BuildConfig.DEBUG) android.util.Log.i("RoomMaintenance", "finish=" + success + " phase=" + maintenancePhase
+        if (BuildConfig.DEBUG || !success) android.util.Log.w("RoomMaintenance", "finish=" + success + " phase=" + maintenancePhase
+            + " reason=" + maintenanceReason + " retries=" + maintenanceRetries
             + " focused=" + getWindow().getDecorView().hasWindowFocus() + " pageFailed=" + failed);
         maintenancePhase = 0; maintenanceQueryId++; maintenanceProbe = false; maintenanceAwaitingLoad = false;
-        maintenanceFailed = !success;
+        maintenanceFailed = !success; maintenanceReason = "";
+        if (success) maintenanceRetries = 0;
         // After a clean menu there is nothing left to clear; the next cycle starts with the next touch.
         if (success) idleRefresh.rest(SystemClock.elapsedRealtime()); else idleRefresh.touch(SystemClock.elapsedRealtime());
         maintenancePanel.setVisibility(View.GONE);
@@ -541,7 +546,12 @@ public abstract class MainActivity extends Activity {
         idleCountdown.setVisibility(enabled && !resting ? View.VISIBLE : View.GONE);
         if (!enabled) return;
         if (resting) { keepSessionAlive(now); return; }
-        if (maintenanceFailed) { idleCountdown.setText(R.string.idle_failed); return; }
+        if (maintenanceFailed) {
+            idleCountdown.setText(R.string.idle_failed);
+            if (idleRefresh.remainingSeconds(now) > 0 || maintenanceRetries >= MAX_MAINTENANCE_RETRIES) return;
+            // A retry is a new cycle: it starts only on a safe page and reads a fresh cart.
+            maintenanceRetries++; maintenanceFailed = false;
+        }
         if (maintenancePhase != 0 && now - maintenanceStarted > 120_000) { finishMaintenance(false); return; }
         if (!getWindow().getDecorView().hasWindowFocus() || failed) {
             if (maintenancePhase != 0) finishMaintenance(false); else waitIdle(now);
@@ -597,7 +607,7 @@ public abstract class MainActivity extends Activity {
                     if (seconds == 0) startMaintenance(web.getUrl());
                 } else if (phase == 1) {
                     if (BuildConfig.DEBUG) android.util.Log.i("RoomMaintenance", "delete=" + state.optString("status") + " count=" + state.optInt("count") + " reason=" + state.optString("reason"));
-                    if ("failed".equals(state.optString("status"))) { finishMaintenance(false); return; }
+                    if ("failed".equals(state.optString("status"))) { maintenanceReason = state.optString("reason"); finishMaintenance(false); return; }
                     if ("empty".equals(state.optString("status"))) {
                         maintenancePhase = 2; maintenanceMessage.setText(R.string.idle_verifying); openForMaintenance(maintenanceCartUrl);
                     }
